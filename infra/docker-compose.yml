@@ -1,0 +1,74 @@
+# infra/docker-compose.yml
+
+version: '3.8'
+
+services:
+  # Layanan Backend (Go)
+  backend:
+    container_name: rekamedchain_backend
+    build:
+      context: .
+      dockerfile: ./infra/Dockerfile.backend
+    ports:
+      - "8080:8080" # Map port 8080 host ke 8080 container
+    volumes:
+      - ./apps/backend:/app # Sinkronisasi kode backend untuk live-reload
+    depends_on:
+      - db
+      - ipfs
+    environment:
+      - DB_SOURCE=postgresql://user:password@db:5432/rekamedchain?sslmode=disable
+      - IPFS_API=http://ipfs:5001
+    networks:
+      - rekamed_net
+
+  # Layanan Frontend (Next.js)
+  web:
+    container_name: rekamedchain_web
+    build:
+      context: .
+      dockerfile: ./infra/Dockerfile.web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules # Mencegah node_modules lokal menimpa yang di container
+      - /app/.next
+    networks:
+      - rekamed_net
+
+  # Database (PostgreSQL)
+  db:
+    container_name: rekamedchain_db
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persistensi data
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=rekamedchain
+    networks:
+      - rekamed_net
+
+  # Penyimpanan Terdistribusi (IPFS)
+  ipfs:
+    container_name: rekamedchain_ipfs
+    image: ipfs/go-ipfs:latest
+    ports:
+      - "4001:4001" # TCP
+      - "5001:5001" # API
+      - "8080:8080" # Gateway
+    volumes:
+      - ipfs_data:/data/ipfs
+    networks:
+      - rekamed_net
+
+networks:
+  rekamed_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  ipfs_data:

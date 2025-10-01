@@ -1,0 +1,48 @@
+# Node.js
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Next.js
+.next/
+out/
+dist/
+.build/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.vercel/
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# Tailwind
+tailwind.config.js
+
+# Shadcn generated components (optional, kalo mau commit tetap ada)
+# apps/web/components/ui/
+
+# Go
+**/bin/
+**/obj/
+**/vendor/
+go.sum
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
