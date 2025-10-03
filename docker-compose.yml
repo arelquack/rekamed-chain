@@ -27,15 +27,15 @@ services:
     container_name: rekamedchain_web
     build:
       context: .
-      dockerfile: ./infra/Dockerfile.web
+      dockerfile: infra/Dockerfile.web
     ports:
       - "3000:3000"
     volumes:
-      - ./apps/web:/app
-      - /app/node_modules # Mencegah node_modules lokal menimpa yang di container
-      - /app/.next
-    networks:
-      - rekamed_net
+      # Hubungkan source code untuk hot-reloading
+      # Kecuali node_modules agar tidak menimpa yang di dalam kontainer
+      - .:/app
+      - /app/node_modules
+    command: sh -c "pnpm install && pnpm --filter web dev"
 
   # Database (PostgreSQL)
   db:

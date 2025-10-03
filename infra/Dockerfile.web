@@ -1,26 +1,24 @@
-# infra/Dockerfile.web
+# infra/Dockerfile.web (Versi Khusus Development)
 
-# --- Stage 1: Builder ---
-# Bagian ini sudah benar, tidak perlu diubah
-FROM node:18-alpine AS builder
+FROM node:18-alpine
+
+# Install pnpm secara global
 RUN npm install -g pnpm
+
+# Set direktori kerja
 WORKDIR /app
+
+# Copy file-file manifest untuk caching dependensi
+COPY package.json pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/
+
+# Install semua dependensi
+RUN pnpm install
+
+# Copy sisa semua kode
 COPY . .
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter web build
-
-# --- Stage 2: Runner (Standalone) - VERSI BENAR ---
-FROM node:18-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV production
-
-# Copy hasil build standalone ke root /app
-COPY --from=builder /app/apps/web/.next/standalone ./
-# Copy static assets ke ./.next/static
-COPY --from=builder /app/apps/web/.next/static ./.next/static
-# Copy public assets
-COPY --from=builder /app/apps/web/public ./public
 
 EXPOSE 3000
-# Jalankan server.js dari root /app
-CMD ["node", "server.js"]
+
+# Perintah default untuk menjalankan dev server
+CMD ["pnpm", "--filter", "web", "dev"]
