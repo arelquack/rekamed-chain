@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea'; // <-- Import komponen baru
+import { Textarea } from '@/components/ui/textarea';
 
 export default function NewRecordPage() {
     const [patientId, setPatientId] = useState('');
     const [diagnosis, setDiagnosis] = useState('');
     const [notes, setNotes] = useState('');
+    const [file, setFile] = useState<File | null>(null);
 
     const [message, setMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -27,8 +28,32 @@ export default function NewRecordPage() {
         return;
         }
 
+        let attachmentCid = "";
+
         try {
-        const response = await fetch('http://localhost:8080/records', {
+        // TAHAP 1: UPLOAD FILE JIKA ADA
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadResponse = await fetch('http://localhost:8080/upload', {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}` 
+            },
+            body: formData,
+            });
+            
+            const uploadData = await uploadResponse.json();
+            if (!uploadResponse.ok) {
+            throw new Error(uploadData.message || 'Gagal upload file.');
+            }
+            attachmentCid = uploadData.cid; // Simpan CID yang didapat
+            setMessage(`File berhasil di-upload. CID: ${attachmentCid}`);
+        }
+
+        // TAHAP 2: KIRIM DATA REKAM MEDIS (TERMASUK CID JIKA ADA)
+        const recordResponse = await fetch('http://localhost:8080/records', {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json',
@@ -38,23 +63,28 @@ export default function NewRecordPage() {
             patient_id: patientId,
             diagnosis,
             notes,
+            attachment_cid: attachmentCid, // Sertakan CID di sini
             }),
         });
 
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || 'Gagal menambahkan rekam medis.');
+        const recordData = await recordResponse.json();
+        if (!recordResponse.ok) {
+            throw new Error(recordData.message || 'Gagal menambahkan rekam medis.');
         }
-
-        setMessage(`Sukses! Rekam medis baru telah ditambahkan dengan ID: ${data.recordID}`);
+        
+        setMessage(`Sukses! Rekam medis ditambahkan. CID Lampiran: ${attachmentCid || 'Tidak ada'}`);
         // Kosongkan form setelah sukses
         setPatientId('');
         setDiagnosis('');
         setNotes('');
+        setFile(null);
+        // Reset input file
+        const fileInput = document.getElementById('attachment') as HTMLInputElement;
+        if(fileInput) fileInput.value = "";
 
         } catch (error) {
         if (error instanceof Error) {
-            setMessage(error.message);
+            setMessage(`Error: ${error.message}`);
         } else {
             setMessage('Terjadi kesalahan yang tidak diketahui.');
         }
@@ -100,6 +130,14 @@ export default function NewRecordPage() {
                     placeholder="Catatan observasi, resep, anjuran, dll."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
+                    />
+                </div>
+                <div className="flex flex-col space-y-1.5">
+                    <Label htmlFor="attachment">Lampiran (Opsional)</Label>
+                    <Input
+                    id="attachment"
+                    type="file"
+                    onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
                     />
                 </div>
                 </div>
