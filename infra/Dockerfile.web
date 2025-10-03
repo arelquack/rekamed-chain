@@ -1,0 +1,26 @@
+# infra/Dockerfile.web
+
+# --- Stage 1: Builder ---
+# Bagian ini sudah benar, tidak perlu diubah
+FROM node:18-alpine AS builder
+RUN npm install -g pnpm
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter web build
+
+# --- Stage 2: Runner (Standalone) - VERSI BENAR ---
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV production
+
+# Copy hasil build standalone ke root /app
+COPY --from=builder /app/apps/web/.next/standalone ./
+# Copy static assets ke ./.next/static
+COPY --from=builder /app/apps/web/.next/static ./.next/static
+# Copy public assets
+COPY --from=builder /app/apps/web/public ./public
+
+EXPOSE 3000
+# Jalankan server.js dari root /app
+CMD ["node", "server.js"]

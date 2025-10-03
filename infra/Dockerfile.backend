@@ -1,0 +1,32 @@
+# infra/Dockerfile.backend
+
+# --- Stage 1: Builder ---
+# Di stage ini kita build aplikasi Go menjadi binary.
+FROM golang:1.25-alpine AS builder
+
+# Set working directory di dalam container
+WORKDIR /app
+
+# Copy go.mod dan go.sum untuk men-download dependensi
+COPY apps/backend/go.mod apps/backend/go.sum ./
+RUN go mod download
+
+# Copy sisa source code
+COPY apps/backend/ ./
+
+# Build aplikasi. CGO_ENABLED=0 dan GOOS=linux penting untuk
+# membuat static binary yang bisa jalan di image Alpine Linux.
+RUN CGO_ENABLED=0 GOOS=linux go build -o /rekamedchain-api ./cmd
+
+# --- Stage 2: Final Image ---
+# Di stage ini kita pakai image super ringan dan hanya copy hasil build.
+FROM alpine:latest
+
+# Copy binary yang sudah di-build dari stage 'builder'
+COPY --from=builder /rekamedchain-api /rekamedchain-api
+
+# Expose port yang akan digunakan oleh API kita
+EXPOSE 8080
+
+# Perintah untuk menjalankan aplikasi saat container start
+CMD [ "/rekamedchain-api" ]
