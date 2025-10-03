@@ -19,43 +19,41 @@ import (
 // Kunci rahasia untuk JWT. Di aplikasi nyata, ini harus dari environment variable!
 var jwtKey = []byte("kunci_rahasia_super_aman_jangan_ditiru")
 
-// Definisikan struktur data untuk user
+// --- STRUCTS ---
 type User struct {
 	ID             string    `json:"id"`
 	Name           string    `json:"name"`
 	Email          string    `json:"email"`
-	HashedPassword string    `json:"-"` // Jangan kirim hashed password ke client
+	Role           string    `json:"role"`
+	HashedPassword string    `json:"-"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
-// Definisikan struktur untuk request body registrasi
 type RegisterPayload struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Role     string `json:"role"` // Role sekarang bisa diinput saat registrasi
 }
 
-// Definisikan struktur untuk request body login
 type LoginPayload struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-// Claims untuk JWT
 type Claims struct {
 	UserID string `json:"user_id"`
+	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-// Definisikan struktur untuk payload rekam medis baru
 type CreateRecordPayload struct {
 	PatientID string `json:"patient_id"`
 	Diagnosis string `json:"diagnosis"`
 	Notes     string `json:"notes"`
 }
 
-// Definisikan struktur untuk merespon data rekam medis
 type MedicalRecord struct {
 	ID         string    `json:"id"`
 	PatientID  string    `json:"patient_id"`
@@ -65,7 +63,7 @@ type MedicalRecord struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-// --- MIDDLEWARE OTENTIKASI (SATPAM) ---
+// --- MIDDLEWARES ---
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -87,7 +85,19 @@ func authMiddleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
+		ctx = context.WithValue(ctx, "role", claims.Role)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func doctorMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role, ok := r.Context().Value("role").(string)
+		if !ok || role != "doctor" {
+			http.Error(w, "Akses ditolak: Hanya untuk dokter", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -125,9 +135,15 @@ func main() {
 			return
 		}
 
-		sql := `INSERT INTO users (name, email, hashed_password) VALUES ($1, $2, $3) RETURNING id`
+		// Tentukan role, default ke 'patient' jika tidak diisi atau tidak valid
+		role := "patient"
+		if payload.Role == "doctor" {
+			role = "doctor"
+		}
+
+		sql := `INSERT INTO users (name, email, hashed_password, role) VALUES ($1, $2, $3, $4) RETURNING id`
 		var userID string
-		err = db.QueryRow(context.Background(), sql, payload.Name, payload.Email, string(hashedPassword)).Scan(&userID)
+		err = db.QueryRow(context.Background(), sql, payload.Name, payload.Email, string(hashedPassword), role).Scan(&userID)
 		if err != nil {
 			log.Printf("Gagal menyimpan user: %v", err)
 			http.Error(w, "Gagal menyimpan user, mungkin email sudah terdaftar?", http.StatusInternalServerError)
@@ -147,8 +163,8 @@ func main() {
 		}
 
 		var user User
-		sql := `SELECT id, name, email, hashed_password FROM users WHERE email = $1`
-		err := db.QueryRow(context.Background(), sql, payload.Email).Scan(&user.ID, &user.Name, &user.Email, &user.HashedPassword)
+		sql := `SELECT id, name, email, role, hashed_password FROM users WHERE email = $1`
+		err := db.QueryRow(context.Background(), sql, payload.Email).Scan(&user.ID, &user.Name, &user.Email, &user.Role, &user.HashedPassword)
 		if err != nil {
 			http.Error(w, "Email atau password salah", http.StatusUnauthorized)
 			return
@@ -163,6 +179,7 @@ func main() {
 		expirationTime := time.Now().Add(24 * time.Hour)
 		claims := &Claims{
 			UserID: user.ID,
+			Role:   user.Role,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: jwt.NewNumericDate(expirationTime),
 			},
@@ -176,10 +193,12 @@ func main() {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+		json.NewEncoder(w).Encode(map[string]string{
+			"token": tokenString,
+			"role":  user.Role,
+		})
 	})
 
-	// --- ENDPOINT UNTUK MEMBUAT REKAM MEDIS ---
 	createRecordHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		doctorID := r.Context().Value("userID").(string)
 
@@ -205,9 +224,7 @@ func main() {
 			"recordID": recordID,
 		})
 	})
-	mux.Handle("POST /records", authMiddleware(createRecordHandler))
 
-	// --- ENDPOINT UNTUK MENGAMBIL REKAM MEDIS ---
 	getRecordsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		patientID := r.Context().Value("userID").(string)
 
@@ -220,7 +237,7 @@ func main() {
 		}
 		defer rows.Close()
 
-		var records []MedicalRecord
+		records := make([]MedicalRecord, 0)
 		for rows.Next() {
 			var record MedicalRecord
 			if err := rows.Scan(&record.ID, &record.PatientID, &record.DoctorName, &record.Diagnosis, &record.Notes, &record.CreatedAt); err != nil {
@@ -234,6 +251,8 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(records)
 	})
+
+	mux.Handle("POST /records", authMiddleware(doctorMiddleware(createRecordHandler)))
 	mux.Handle("GET /records", authMiddleware(getRecordsHandler))
 
 	// --- Konfigurasi CORS & Start Server ---

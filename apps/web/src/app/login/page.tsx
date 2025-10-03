@@ -38,6 +38,7 @@ export default function LoginPage() {
 
         // Jika login berhasil, simpan token ke localStorage
         localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.role);
         
         // Arahkan user ke halaman dashboard
         router.push('/dashboard');

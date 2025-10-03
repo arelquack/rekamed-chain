@@ -19,8 +19,13 @@ export default function DashboardPage() {
     const [records, setRecords] = useState<MedicalRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [userRole, setUserRole] = useState('');
 
     useEffect(() => {
+        // Ambil role user dari localStorage
+        const role = localStorage.getItem('role');
+        setUserRole(role || '');
+
         const fetchRecords = async () => {
         // Ambil token dari localStorage
         const token = localStorage.getItem('token');
@@ -61,13 +66,14 @@ export default function DashboardPage() {
 
     return (
         <main className="min-h-screen bg-gray-100 p-8">
-        <div className="max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">Dashboard Riwayat Medis</h1>
-            {/* Tombol untuk pindah ke halaman tambah record */}
-            <Link href="/records/new">
-                <Button>+ Tambah Rekam Medis</Button>
-            </Link>
+            <div className="max-w-4xl mx-auto">
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-3xl font-bold">Dashboard Riwayat Medis</h1>
+                    {userRole === 'doctor' && (
+                        <Link href="/records/new">
+                            <Button>+ Tambah Rekam Medis</Button>
+                        </Link>
+                    )}
             </div>
 
             {isLoading && <p>Memuat riwayat medis...</p>}
