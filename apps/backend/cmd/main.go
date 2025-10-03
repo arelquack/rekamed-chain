@@ -55,21 +55,28 @@ type CreateRecordPayload struct {
 	Notes     string `json:"notes"`
 }
 
+// Definisikan struktur untuk merespon data rekam medis
+type MedicalRecord struct {
+	ID         string    `json:"id"`
+	PatientID  string    `json:"patient_id"`
+	DoctorName string    `json:"doctor_name"`
+	Diagnosis  string    `json:"diagnosis"`
+	Notes      string    `json:"notes"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 // --- MIDDLEWARE OTENTIKASI (SATPAM) ---
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 1. Ambil header Authorization
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, "Header Authorization dibutuhkan", http.StatusUnauthorized)
 			return
 		}
 
-		// 2. Pisahkan "Bearer" dari token-nya
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
 
-		// 3. Parse dan validasi token
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 			return jwtKey, nil
 		})
@@ -79,10 +86,7 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Jika token valid, tambahkan user ID ke context request
 		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
-
-		// Lanjutkan ke handler berikutnya dengan request yang sudah dimodifikasi
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -185,7 +189,6 @@ func main() {
 			return
 		}
 
-		// Untuk MVP, kita pakai ID dokter sebagai nama dokter
 		sql := `INSERT INTO medical_records (patient_id, doctor_name, diagnosis, notes) VALUES ($1, $2, $3, $4) RETURNING id`
 		var recordID string
 		err := db.QueryRow(context.Background(), sql, payload.PatientID, "dr. "+doctorID, payload.Diagnosis, payload.Notes).Scan(&recordID)
@@ -202,9 +205,36 @@ func main() {
 			"recordID": recordID,
 		})
 	})
-
-	// Terapkan middleware ke handler rekam medis
 	mux.Handle("POST /records", authMiddleware(createRecordHandler))
+
+	// --- ENDPOINT UNTUK MENGAMBIL REKAM MEDIS ---
+	getRecordsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		patientID := r.Context().Value("userID").(string)
+
+		sql := `SELECT id, patient_id, doctor_name, diagnosis, notes, created_at FROM medical_records WHERE patient_id = $1 ORDER BY created_at DESC`
+		rows, err := db.Query(context.Background(), sql, patientID)
+		if err != nil {
+			log.Printf("Gagal mengambil rekam medis: %v", err)
+			http.Error(w, "Gagal mengambil data", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		var records []MedicalRecord
+		for rows.Next() {
+			var record MedicalRecord
+			if err := rows.Scan(&record.ID, &record.PatientID, &record.DoctorName, &record.Diagnosis, &record.Notes, &record.CreatedAt); err != nil {
+				log.Printf("Gagal memindai baris data: %v", err)
+				http.Error(w, "Gagal memproses data", http.StatusInternalServerError)
+				return
+			}
+			records = append(records, record)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(records)
+	})
+	mux.Handle("GET /records", authMiddleware(getRecordsHandler))
 
 	// --- Konfigurasi CORS & Start Server ---
 	handler := cors.AllowAll().Handler(mux)
