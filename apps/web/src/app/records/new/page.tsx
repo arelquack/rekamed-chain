@@ -72,7 +72,7 @@ export default function NewRecordPage() {
             throw new Error(recordData.message || 'Gagal menambahkan rekam medis.');
         }
         
-        setMessage(`Sukses! Rekam medis ditambahkan. CID Lampiran: ${attachmentCid || 'Tidak ada'}`);
+        setMessage(`Sukses! ID: ${recordData.recordID} | Hash Blok: ${recordData.blockHash}`);
         // Kosongkan form setelah sukses
         setPatientId('');
         setDiagnosis('');

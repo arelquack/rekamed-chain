@@ -110,18 +110,22 @@ export default function DashboardPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                    <p>{record.notes}</p>
-                    {/* Tampilkan link HANYA jika ada attachment_cid */}
-                    {record.attachment_cid && (
-                        <a
-                        href={`http://localhost:8081/ipfs/${record.attachment_cid}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline mt-2 inline-block"
-                        >
-                        Lihat Lampiran
-                        </a>
-                    )}
+                        <p>{record.notes}</p>
+                        {record.attachment_cid && (
+                            <div className="mt-4">
+                            <a
+                                href={`http://localhost:8081/ipfs/${record.attachment_cid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:underline"
+                            >
+                                Lihat Lampiran
+                            </a>
+                            <p className="text-xs text-gray-500 font-mono mt-1">
+                                CID: {record.attachment_cid}
+                            </p>
+                            </div>
+                        )}
                     </CardContent>
                     </Card>
                 ))

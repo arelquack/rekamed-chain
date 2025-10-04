@@ -45,7 +45,6 @@ export default function ConsentScreen() {
   // useFocusEffect akan menjalankan fetchRequests setiap kali layar ini dibuka/difokuskan
   useFocusEffect(
     React.useCallback(() => {
-      Alert.alert("Masuk ke Halaman Consent!");
       fetchRequests();
     }, [])
   );

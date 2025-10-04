@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, View, Text, StyleSheet, FlatList, ActivityIndicator, Linking, TouchableOpacity } from 'react-native';
+import { Button, View, Text, StyleSheet, FlatList, ActivityIndicator, Linking, Platform, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
@@ -63,21 +63,22 @@ export default function DashboardScreen() {
     <View style={styles.card}>
         <Text style={styles.diagnosis}>{item.diagnosis}</Text>
         <Text style={styles.notes}>{item.notes}</Text>
-        
-        {/* Tampilkan tombol HANYA jika ada attachment_cid */}
+
         {item.attachment_cid && (
+        <View style={styles.attachmentContainer}>
             <TouchableOpacity 
-            // Kita ganti port 8080 (API) menjadi 8081 (IPFS Gateway)
-            onPress={() => Linking.openURL(`${API_URL.replace(':8080', ':8081')}/ipfs/${item.attachment_cid}`)}
+            onPress={() => Linking.openURL(`${API_URL}/ipfs/${item.attachment_cid}`)}
             >
             <Text style={styles.link}>Lihat Lampiran</Text>
             </TouchableOpacity>
+            <Text style={styles.cidText}>CID: {item.attachment_cid}</Text>
+        </View>
         )}
 
         <Text style={styles.meta}>
-            Oleh: {item.doctor_name} pada {new Date(item.created_at).toLocaleDateString('id-ID')}
+        Oleh: {item.doctor_name} pada {new Date(item.created_at).toLocaleDateString('id-ID')}
         </Text>
-        </View>
+    </View>
     );
 
     if (isLoading) {
@@ -147,15 +148,25 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
     },
+    attachmentContainer: {
+        marginTop: 10,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+    },
     link: {
-        color: '#007AFF', // Warna biru khas link
-        textDecorationLine: 'underline',
-        paddingTop: 8,
-        // paddingBottom: 8,
+        color: '#007AFF',
+        fontSize: 14,
+    },
+    cidText: {
+        fontSize: 10,
+        color: '#666',
+        fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace', // Monospace font
+        marginTop: 4,
     },
     header: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ccc',
     },
 });
