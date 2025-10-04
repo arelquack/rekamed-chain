@@ -75,16 +75,21 @@ export default function DashboardPage() {
                         </Link>
                     )}
 
-                    <div className="flex items-center gap-4"> {/* Bungkus tombol dalam div */}
+                    <div className="flex items-center gap-4">
                         <Link href="/consent">
                             <Button variant="outline">Manajemen Izin</Button>
                         </Link>
                         {userRole === 'doctor' && (
-                            <Link href="/records/new">
-                            <Button>+ Tambah Rekam Medis</Button>
+                            <> {/* Gunakan fragment untuk mengelompokkan */}
+                            <Link href="/ledger">
+                                <Button variant="outline">Lihat Ledger</Button>
                             </Link>
+                            <Link href="/records/new">
+                                <Button>+ Tambah Rekam Medis</Button>
+                            </Link>
+                            </>
                         )}
-                    </div>
+                        </div>
             </div>
 
             {isLoading && <p>Memuat riwayat medis...</p>}

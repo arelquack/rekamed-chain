@@ -90,6 +90,14 @@ type ConsentRequest struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type LedgerBlock struct {
+	BlockID      int       `json:"block_id"`
+	RecordID     string    `json:"record_id"`
+	DataHash     string    `json:"data_hash"`
+	PreviousHash string    `json:"previous_hash"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 // --- MIDDLEWARES ---
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -427,6 +435,28 @@ func main() {
 		json.NewEncoder(w).Encode(records)
 	})
 
+	handleGetLedger := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sqlQuery := `SELECT block_id, record_id, data_hash, previous_hash, created_at FROM blockchain_ledger ORDER BY block_id DESC`
+		rows, err := db.Query(r.Context(), sqlQuery)
+		if err != nil {
+			http.Error(w, "Gagal mengambil data ledger", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		blocks := make([]LedgerBlock, 0)
+		for rows.Next() {
+			var block LedgerBlock
+			if err := rows.Scan(&block.BlockID, &block.RecordID, &block.DataHash, &block.PreviousHash, &block.CreatedAt); err != nil {
+				http.Error(w, "Gagal memproses data ledger", http.StatusInternalServerError)
+				return
+			}
+			blocks = append(blocks, block)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(blocks)
+	})
+
 	// Middleware untuk consent butuh akses ke DB, jadi kita bungkus seperti ini
 	consentCheck := func(next http.Handler) http.Handler {
 		return consentMiddleware(db, next)
@@ -439,6 +469,7 @@ func main() {
 	mux.Handle("GET /consent/requests/me", authMiddleware(http.HandlerFunc(handleGetMyConsentRequests)))
 	mux.Handle("POST /consent/grant/{request_id}", authMiddleware(http.HandlerFunc(handleGrantConsent)))
 	mux.Handle("GET /records/patient/{patient_id}", authMiddleware(doctorMiddleware(consentCheck(handleGetPatientRecords))))
+	mux.Handle("GET /ledger", authMiddleware(doctorMiddleware(handleGetLedger)))
 
 	// --- Konfigurasi CORS & Start Server ---
 	handler := cors.AllowAll().Handler(mux)
