@@ -62,6 +62,16 @@ services:
     networks:
       - rekamed_net
 
+  hardhat:
+    container_name: rekamedchain_hardhat
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.hardhat
+    ports:
+      - "8545:8545" # Port standar Ethereum RPC
+    networks:
+      - rekamed_net
+
 networks:
   rekamed_net:
     driver: bridge

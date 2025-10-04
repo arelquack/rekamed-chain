@@ -1,0 +1,11 @@
+{
+    "name": "rekamedchain-blockchain",
+    "version": "1.0.0",
+    "scripts": {
+        "node": "hardhat node"
+    },
+    "devDependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "hardhat": "^2.22.6"
+    }
+}

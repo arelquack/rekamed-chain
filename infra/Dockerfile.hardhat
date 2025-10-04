@@ -1,0 +1,12 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY blockchain/package.json blockchain/pnpm-lock.yaml* ./
+RUN npm install -g pnpm && pnpm install
+
+COPY blockchain/ .
+
+EXPOSE 8545
+
+CMD [ "pnpm", "run", "node" ]
