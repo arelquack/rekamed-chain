@@ -77,6 +77,19 @@ type MedicalRecord struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
+type ConsentRequestPayload struct {
+	PatientID string `json:"patient_id"`
+}
+
+type ConsentRequest struct {
+	ID        string    `json:"id"`
+	DoctorID  string    `json:"doctor_id"`
+	PatientID string    `json:"patient_id"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // --- MIDDLEWARES ---
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -297,9 +310,72 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"cid": cid})
 	})
 
+	// 1. Handler untuk dokter meminta akses
+	handleConsentRequest := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		doctorID := r.Context().Value(userIDKey).(string)
+		var payload ConsentRequestPayload
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+			return
+		}
+
+		sql := `INSERT INTO consent_requests (doctor_id, patient_id) VALUES ($1, $2) RETURNING id`
+		var requestID string
+		err := db.QueryRow(r.Context(), sql, doctorID, payload.PatientID).Scan(&requestID)
+		if err != nil {
+			log.Printf("Gagal membuat permintaan consent: %v", err)
+			http.Error(w, "Gagal membuat permintaan", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Permintaan akses berhasil dikirim", "request_id": requestID})
+	})
+
+	// 2. Handler untuk pasien melihat semua permintaan untuknya
+	handleGetMyConsentRequests := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		patientID := r.Context().Value(userIDKey).(string)
+		sql := `SELECT id, doctor_id, patient_id, status, created_at, updated_at FROM consent_requests WHERE patient_id = $1 ORDER BY created_at DESC`
+		rows, err := db.Query(r.Context(), sql, patientID)
+		if err != nil {
+			http.Error(w, "Gagal mengambil data permintaan", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		requests := make([]ConsentRequest, 0)
+		for rows.Next() {
+			var req ConsentRequest
+			if err := rows.Scan(&req.ID, &req.DoctorID, &req.PatientID, &req.Status, &req.CreatedAt, &req.UpdatedAt); err != nil {
+				http.Error(w, "Gagal memproses data", http.StatusInternalServerError)
+				return
+			}
+			requests = append(requests, req)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(requests)
+	})
+
+	// 3. Handler untuk pasien menyetujui permintaan
+	handleGrantConsent := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		patientID := r.Context().Value(userIDKey).(string)
+		requestID := r.PathValue("request_id") // Ambil ID dari URL (e.g., /consent/grant/xxxxx)
+
+		sql := `UPDATE consent_requests SET status = 'granted', updated_at = NOW() WHERE id = $1 AND patient_id = $2`
+		res, err := db.Exec(r.Context(), sql, requestID, patientID)
+		if err != nil || res.RowsAffected() == 0 {
+			http.Error(w, "Gagal menyetujui permintaan atau permintaan tidak ditemukan", http.StatusNotFound)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"message": "Permintaan berhasil disetujui"})
+	})
+
 	mux.Handle("POST /records", authMiddleware(doctorMiddleware(createRecordHandler)))
 	mux.Handle("GET /records", authMiddleware(getRecordsHandler))
 	mux.Handle("POST /upload", authMiddleware(doctorMiddleware(uploadHandler)))
+	mux.Handle("POST /consent/request", authMiddleware(doctorMiddleware(handleConsentRequest)))
+	mux.Handle("GET /consent/requests/me", authMiddleware(http.HandlerFunc(handleGetMyConsentRequests)))
+	mux.Handle("POST /consent/grant/{request_id}", authMiddleware(http.HandlerFunc(handleGrantConsent)))
 
 	// --- Konfigurasi CORS & Start Server ---
 	handler := cors.AllowAll().Handler(mux)

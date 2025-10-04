@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/ipfs/boxo v0.35.0
 	github.com/ipfs/kubo v0.38.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/rs/cors v1.11.1
@@ -26,7 +27,6 @@ require (
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
-	github.com/ipfs/boxo v0.35.0 // indirect
 	github.com/ipfs/go-bitfield v1.1.0 // indirect
 	github.com/ipfs/go-block-format v0.2.3 // indirect
 	github.com/ipfs/go-cid v0.5.0 // indirect
