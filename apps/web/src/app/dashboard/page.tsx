@@ -74,6 +74,17 @@ export default function DashboardPage() {
                             <Button>+ Tambah Rekam Medis</Button>
                         </Link>
                     )}
+
+                    <div className="flex items-center gap-4"> {/* Bungkus tombol dalam div */}
+                        <Link href="/consent">
+                            <Button variant="outline">Manajemen Izin</Button>
+                        </Link>
+                        {userRole === 'doctor' && (
+                            <Link href="/records/new">
+                            <Button>+ Tambah Rekam Medis</Button>
+                            </Link>
+                        )}
+                    </div>
             </div>
 
             {isLoading && <p>Memuat riwayat medis...</p>}
