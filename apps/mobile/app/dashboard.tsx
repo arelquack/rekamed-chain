@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Linking, TouchableOpacity } from 'react-native';
+import { Button, View, Text, StyleSheet, FlatList, ActivityIndicator, Linking, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 // PASTIKAN URL NGROK INI SESUAI DENGAN YANG ADA DI TERMINAL LO
 const API_URL = 'https://fatigueless-elfrieda-scrimpier.ngrok-free.dev'; // <-- GANTI DENGAN URL NGROK-MU
@@ -19,6 +20,7 @@ export default function DashboardScreen() {
     const [records, setRecords] = useState<MedicalRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const router = useRouter();
 
     useEffect(() => {
         const fetchRecords = async () => {
@@ -88,6 +90,9 @@ export default function DashboardScreen() {
 
     return (
         <View style={styles.container}>
+            <View style={styles.header}>
+                <Button title="Manajemen Izin Akses" onPress={() => { router.push('/consent') }} />
+            </View>
         {records.length > 0 ? (
             <FlatList
             data={records}
@@ -147,5 +152,10 @@ const styles = StyleSheet.create({
         textDecorationLine: 'underline',
         paddingTop: 8,
         // paddingBottom: 8,
+    },
+    header: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
     },
 });
