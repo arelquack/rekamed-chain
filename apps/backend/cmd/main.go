@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/ipfs/boxo/files"
 	ipfshttp "github.com/ipfs/kubo/client/rpc"
 	iface "github.com/ipfs/kubo/core/coreiface"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	"golang.org/x/crypto/bcrypt"
@@ -22,6 +24,12 @@ import (
 
 // Kunci rahasia untuk JWT
 var jwtKey = []byte("kunci_rahasia_super_aman_jangan_ditiru")
+
+// --- Tipe & Kunci Konteks ---
+type contextKey string
+
+const userIDKey = contextKey("userID")
+const userRoleKey = contextKey("userRole")
 
 // --- STRUCTS ---
 type User struct {
@@ -86,15 +94,15 @@ func authMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "Token tidak valid", http.StatusUnauthorized)
 			return
 		}
-		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
-		ctx = context.WithValue(ctx, "role", claims.Role)
+		ctx := context.WithValue(r.Context(), userIDKey, claims.UserID)
+		ctx = context.WithValue(ctx, userRoleKey, claims.Role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func doctorMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		role, ok := r.Context().Value("role").(string)
+		role, ok := r.Context().Value(userRoleKey).(string)
 		if !ok || role != "doctor" {
 			http.Error(w, "Akses ditolak: Hanya untuk dokter", http.StatusForbidden)
 			return
@@ -197,7 +205,7 @@ func main() {
 	})
 
 	createRecordHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		doctorID := r.Context().Value("userID").(string)
+		doctorID := r.Context().Value(userIDKey).(string)
 		var payload CreateRecordPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, "Request body tidak valid", http.StatusBadRequest)
@@ -205,19 +213,42 @@ func main() {
 		}
 		sqlQuery := `INSERT INTO medical_records (patient_id, doctor_name, diagnosis, notes, attachment_cid) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 		var recordID string
-		err := db.QueryRow(context.Background(), sqlQuery, payload.PatientID, "dr. "+doctorID, payload.Diagnosis, payload.Notes, payload.AttachmentCID).Scan(&recordID)
+		err := db.QueryRow(r.Context(), sqlQuery, payload.PatientID, "dr. "+doctorID, payload.Diagnosis, payload.Notes, payload.AttachmentCID).Scan(&recordID)
 		if err != nil {
 			log.Printf("Gagal menyimpan rekam medis: %v", err)
 			http.Error(w, "Gagal menyimpan rekam medis", http.StatusInternalServerError)
 			return
 		}
+		var previousHash string
+		err = db.QueryRow(r.Context(), `SELECT data_hash FROM blockchain_ledger ORDER BY block_id DESC LIMIT 1`).Scan(&previousHash)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				previousHash = strings.Repeat("0", 64)
+			} else {
+				http.Error(w, "Gagal mendapatkan blok sebelumnya", http.StatusInternalServerError)
+				return
+			}
+		}
+		recordData := fmt.Sprintf("%s%s%s%s%s%s", recordID, payload.PatientID, "dr. "+doctorID, payload.Diagnosis, payload.Notes, payload.AttachmentCID)
+		dataHash := fmt.Sprintf("%x", sha256.Sum256([]byte(recordData)))
+		_, err = db.Exec(r.Context(), `INSERT INTO blockchain_ledger (record_id, data_hash, previous_hash) VALUES ($1, $2, $3)`, recordID, dataHash, previousHash)
+		if err != nil {
+			log.Printf("Gagal menyimpan blok ke ledger: %v", err)
+			http.Error(w, "Gagal mencatat ke blockchain ledger", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Blok baru ditambahkan ke ledger. Hash: %s", dataHash)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Rekam medis berhasil ditambahkan", "recordID": recordID})
+		json.NewEncoder(w).Encode(map[string]string{
+			"message":   "Rekam medis berhasil ditambahkan dan dicatat di ledger",
+			"recordID":  recordID,
+			"blockHash": dataHash,
+		})
 	})
 
 	getRecordsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		patientID := r.Context().Value("userID").(string)
+		patientID := r.Context().Value(userIDKey).(string)
 		sqlQuery := `SELECT id, patient_id, doctor_name, diagnosis, notes, attachment_cid, created_at FROM medical_records WHERE patient_id = $1 ORDER BY created_at DESC`
 		rows, err := db.Query(context.Background(), sqlQuery, patientID)
 		if err != nil {
@@ -246,7 +277,6 @@ func main() {
 
 	uploadHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var api iface.CoreAPI = ipfsClient
-
 		r.ParseMultipartForm(10 << 20)
 		file, _, err := r.FormFile("file")
 		if err != nil {
@@ -254,19 +284,15 @@ func main() {
 			return
 		}
 		defer file.Close()
-
 		fileNode := files.NewReaderFile(file)
-
 		path, err := api.Unixfs().Add(r.Context(), fileNode)
 		if err != nil {
 			log.Printf("Gagal menambahkan file ke IPFS: %v", err)
 			http.Error(w, "Gagal mengupload file", http.StatusInternalServerError)
 			return
 		}
-
 		fullPath := path.String()
 		cid := strings.TrimPrefix(fullPath, "/ipfs/")
-
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"cid": cid})
 	})
