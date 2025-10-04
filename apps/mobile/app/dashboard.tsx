@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Linking, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // PASTIKAN URL NGROK INI SESUAI DENGAN YANG ADA DI TERMINAL LO
@@ -12,6 +12,7 @@ interface MedicalRecord {
     diagnosis: string;
     notes: string;
     created_at: string;
+    attachment_cid?: string;
 }
 
 export default function DashboardScreen() {
@@ -57,9 +58,20 @@ export default function DashboardScreen() {
 
     // Komponen untuk merender setiap item di daftar
     const renderItem = ({ item }: { item: MedicalRecord }) => (
-        <View style={styles.card}>
+    <View style={styles.card}>
         <Text style={styles.diagnosis}>{item.diagnosis}</Text>
         <Text style={styles.notes}>{item.notes}</Text>
+        
+        {/* Tampilkan tombol HANYA jika ada attachment_cid */}
+        {item.attachment_cid && (
+            <TouchableOpacity 
+            // Kita ganti port 8080 (API) menjadi 8081 (IPFS Gateway)
+            onPress={() => Linking.openURL(`${API_URL.replace(':8080', ':8081')}/ipfs/${item.attachment_cid}`)}
+            >
+            <Text style={styles.link}>Lihat Lampiran</Text>
+            </TouchableOpacity>
+        )}
+
         <Text style={styles.meta}>
             Oleh: {item.doctor_name} pada {new Date(item.created_at).toLocaleDateString('id-ID')}
         </Text>
@@ -129,5 +141,11 @@ const styles = StyleSheet.create({
     meta: {
         fontSize: 12,
         color: '#666',
+    },
+    link: {
+        color: '#007AFF', // Warna biru khas link
+        textDecorationLine: 'underline',
+        paddingTop: 8,
+        // paddingBottom: 8,
     },
 });

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -185,13 +187,13 @@ func main() {
 	log.Println("IPFS node connected!")
 
 	// --- ROUTING & HANDLER ---
-	mux := http.NewServeMux()
+	apiMux := http.NewServeMux()
 
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+	apiMux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "RekamedChain API is alive! 🚀")
 	})
 
-	mux.HandleFunc("POST /register", func(w http.ResponseWriter, r *http.Request) {
+	apiMux.HandleFunc("POST /register", func(w http.ResponseWriter, r *http.Request) {
 		var payload RegisterPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, "Request body tidak valid", http.StatusBadRequest)
@@ -219,7 +221,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"message": "Registrasi berhasil", "userID": userID})
 	})
 
-	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
+	apiMux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
 		var payload LoginPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, "Request body tidak valid", http.StatusBadRequest)
@@ -462,18 +464,26 @@ func main() {
 		return consentMiddleware(db, next)
 	}
 
-	mux.Handle("POST /records", authMiddleware(doctorMiddleware(createRecordHandler)))
-	mux.Handle("GET /records", authMiddleware(getRecordsHandler))
-	mux.Handle("POST /upload", authMiddleware(doctorMiddleware(uploadHandler)))
-	mux.Handle("POST /consent/request", authMiddleware(doctorMiddleware(handleConsentRequest)))
-	mux.Handle("GET /consent/requests/me", authMiddleware(http.HandlerFunc(handleGetMyConsentRequests)))
-	mux.Handle("POST /consent/grant/{request_id}", authMiddleware(http.HandlerFunc(handleGrantConsent)))
-	mux.Handle("GET /records/patient/{patient_id}", authMiddleware(doctorMiddleware(consentCheck(handleGetPatientRecords))))
-	mux.Handle("GET /ledger", authMiddleware(doctorMiddleware(handleGetLedger)))
+	apiMux.Handle("POST /records", authMiddleware(doctorMiddleware(createRecordHandler)))
+	apiMux.Handle("GET /records", authMiddleware(getRecordsHandler))
+	apiMux.Handle("POST /upload", authMiddleware(doctorMiddleware(uploadHandler)))
+	apiMux.Handle("POST /consent/request", authMiddleware(doctorMiddleware(handleConsentRequest)))
+	apiMux.Handle("GET /consent/requests/me", authMiddleware(http.HandlerFunc(handleGetMyConsentRequests)))
+	apiMux.Handle("POST /consent/grant/{request_id}", authMiddleware(http.HandlerFunc(handleGrantConsent)))
+	apiMux.Handle("GET /records/patient/{patient_id}", authMiddleware(doctorMiddleware(consentCheck(handleGetPatientRecords))))
+	apiMux.Handle("GET /ledger", authMiddleware(doctorMiddleware(handleGetLedger)))
+
+	// --- LOGIKA REVERSE PROXY (PENJAGA GERBANG) ---
+	ipfsGatewayURL, _ := url.Parse("http://ipfs:8080")
+	ipfsProxy := httputil.NewSingleHostReverseProxy(ipfsGatewayURL)
+
+	masterMux := http.NewServeMux()
+	masterMux.Handle("/ipfs/", ipfsProxy) // Jika path diawali /ipfs/, teruskan ke IPFS
+	masterMux.Handle("/", apiMux)         // Sisanya, teruskan ke API utama kita
 
 	// --- Konfigurasi CORS & Start Server ---
-	handler := cors.AllowAll().Handler(mux)
-	log.Println("Backend server is starting on http://localhost:8080")
+	handler := cors.AllowAll().Handler(masterMux)
+	log.Println("Backend server (proxy mode) is starting on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal("Server start error:", err)
 	}

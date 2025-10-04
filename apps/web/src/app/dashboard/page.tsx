@@ -13,6 +13,7 @@ interface MedicalRecord {
     diagnosis: string;
     notes: string;
     created_at: string;
+    attachment_cid?: string;
 }
 
 export default function DashboardPage() {
@@ -109,7 +110,18 @@ export default function DashboardPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p>{record.notes}</p>
+                    <p>{record.notes}</p>
+                    {/* Tampilkan link HANYA jika ada attachment_cid */}
+                    {record.attachment_cid && (
+                        <a
+                        href={`http://localhost:8081/ipfs/${record.attachment_cid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline mt-2 inline-block"
+                        >
+                        Lihat Lampiran
+                        </a>
+                    )}
                     </CardContent>
                     </Card>
                 ))
