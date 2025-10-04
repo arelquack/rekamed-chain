@@ -8,6 +8,8 @@ yarn.lock
 out/
 dist/
 .build/
+.env
+.env.*
 .env.local
 .env.development.local
 .env.test.local

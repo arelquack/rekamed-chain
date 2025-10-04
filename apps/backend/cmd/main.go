@@ -124,6 +124,34 @@ func doctorMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func consentMiddleware(db *pgxpool.Pool, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Ambil ID dokter dari token
+		doctorID := r.Context().Value(userIDKey).(string)
+		// Ambil ID pasien dari URL
+		patientID := r.PathValue("patient_id")
+
+		if doctorID == "" || patientID == "" {
+			http.Error(w, "ID Dokter atau Pasien tidak valid", http.StatusBadRequest)
+			return
+		}
+
+		// Cek ke database apakah ada izin yang 'granted'
+		var status string
+		sql := `SELECT status FROM consent_requests WHERE doctor_id = $1 AND patient_id = $2 AND status = 'granted' LIMIT 1`
+		err := db.QueryRow(r.Context(), sql, doctorID, patientID).Scan(&status)
+
+		if err != nil {
+			// Jika tidak ada baris yang ditemukan, atau statusnya bukan 'granted'
+			http.Error(w, "Akses ditolak: Anda tidak memiliki izin dari pasien ini", http.StatusForbidden)
+			return
+		}
+
+		// Jika izin ditemukan dan statusnya 'granted', lanjutkan
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// --- KONEKSI ---
 	dbUrl := os.Getenv("DB_SOURCE")
@@ -370,12 +398,47 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"message": "Permintaan berhasil disetujui"})
 	})
 
+	handleGetPatientRecords := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		patientID := r.PathValue("patient_id")
+
+		// Logika query sama seperti getRecordsHandler, tapi pakai patientID dari URL
+		sqlQuery := `SELECT id, patient_id, doctor_name, diagnosis, notes, attachment_cid, created_at FROM medical_records WHERE patient_id = $1 ORDER BY created_at DESC`
+		rows, err := db.Query(r.Context(), sqlQuery, patientID)
+		if err != nil {
+			http.Error(w, "Gagal mengambil data", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		records := make([]MedicalRecord, 0)
+		for rows.Next() {
+			var record MedicalRecord
+			var attachmentCID sql.NullString
+			if err := rows.Scan(&record.ID, &record.PatientID, &record.DoctorName, &record.Diagnosis, &record.Notes, &attachmentCID, &record.CreatedAt); err != nil {
+				http.Error(w, "Gagal memproses data", http.StatusInternalServerError)
+				return
+			}
+			if attachmentCID.Valid {
+				record.AttachmentCID = attachmentCID.String
+			}
+			records = append(records, record)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(records)
+	})
+
+	// Middleware untuk consent butuh akses ke DB, jadi kita bungkus seperti ini
+	consentCheck := func(next http.Handler) http.Handler {
+		return consentMiddleware(db, next)
+	}
+
 	mux.Handle("POST /records", authMiddleware(doctorMiddleware(createRecordHandler)))
 	mux.Handle("GET /records", authMiddleware(getRecordsHandler))
 	mux.Handle("POST /upload", authMiddleware(doctorMiddleware(uploadHandler)))
 	mux.Handle("POST /consent/request", authMiddleware(doctorMiddleware(handleConsentRequest)))
 	mux.Handle("GET /consent/requests/me", authMiddleware(http.HandlerFunc(handleGetMyConsentRequests)))
 	mux.Handle("POST /consent/grant/{request_id}", authMiddleware(http.HandlerFunc(handleGrantConsent)))
+	mux.Handle("GET /records/patient/{patient_id}", authMiddleware(doctorMiddleware(consentCheck(handleGetPatientRecords))))
 
 	// --- Konfigurasi CORS & Start Server ---
 	handler := cors.AllowAll().Handler(mux)
