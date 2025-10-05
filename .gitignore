@@ -1,36 +1,6 @@
-# Node.js
-node_modules/
-package-lock.json
-yarn.lock
-
-# Next.js
-.next/
-out/
-dist/
-.build/
-.env
-.env.*
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.vercel/
-*.log
-
-# TypeScript
-*.tsbuildinfo
-
-# Tailwind
-tailwind.config.js
-
-# Shadcn generated components (optional, kalo mau commit tetap ada)
-# apps/web/components/ui/
-
-# Go
-**/bin/
-**/obj/
-**/vendor/
-go.sum
+# ==============================
+# Global ignores
+# ==============================
 
 # OS
 .DS_Store
@@ -43,7 +13,48 @@ Thumbs.db
 *.swo
 
 # Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# ==============================
+# Node.js / Frontend (Next.js, React, etc.)
+# ==============================
+node_modules/
+package-lock.json
+yarn.lock
+.pnpm-debug.log*
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+.vercel/
+.cache/
+coverage/
+
+# Env files
+.env
+.env.*
+!.env.example  # biar contoh env tetap bisa dikomit
+
+# ==============================
+# Go / Backend
+# ==============================
+**/bin/
+**/obj/
+**/vendor/
+go.sum
+
+# ==============================
+# Tailwind / Shadcn
+# ==============================
+tailwind.config.js
+postcss.config.js
+
+# Shadcn generated components (optional)
+# apps/web/components/ui/
