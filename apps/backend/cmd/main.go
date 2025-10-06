@@ -100,6 +100,14 @@ type LedgerBlock struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+type AccessLog struct {
+	DoctorName      string    `json:"doctor_name"`
+	Action          string    `json:"action"`
+	RecordDiagnosis string    `json:"record_diagnosis"` // Diagnosis dari record yg diakses
+	Timestamp       time.Time `json:"timestamp"`
+	Status          string    `json:"status"`
+}
+
 // --- MIDDLEWARES ---
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -470,6 +478,43 @@ func main() {
 		json.NewEncoder(w).Encode(blocks)
 	})
 
+	handleGetAccessLog := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		patientID := r.Context().Value(userIDKey).(string)
+
+		// Query canggih untuk menggabungkan data dari 3 tabel
+		sqlQuery := `
+			SELECT u.name, 'membuat rekam medis' as action, mr.diagnosis, bl.created_at, 'terverifikasi' as status
+			FROM blockchain_ledger bl
+			JOIN medical_records mr ON bl.record_id = mr.id
+			JOIN users u ON mr.patient_id = u.id -- Ini asumsi dokter membuat log untuk pasiennya sendiri
+			WHERE mr.patient_id = $1
+			UNION ALL
+			SELECT u.name, 'meminta izin akses' as action, '' as diagnosis, cr.created_at, cr.status
+			FROM consent_requests cr
+			JOIN users u ON cr.doctor_id = u.id
+			WHERE cr.patient_id = $1
+			ORDER BY created_at DESC;
+		`
+		rows, err := db.Query(r.Context(), sqlQuery, patientID)
+		if err != nil {
+			http.Error(w, "Gagal mengambil data log akses", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		logs := make([]AccessLog, 0)
+		for rows.Next() {
+			var logItem AccessLog
+			if err := rows.Scan(&logItem.DoctorName, &logItem.Action, &logItem.RecordDiagnosis, &logItem.Timestamp, &logItem.Status); err != nil {
+				http.Error(w, "Gagal memproses data log", http.StatusInternalServerError)
+				return
+			}
+			logs = append(logs, logItem)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(logs)
+	})
+
 	// Middleware untuk consent butuh akses ke DB, jadi kita bungkus seperti ini
 	consentCheck := func(next http.Handler) http.Handler {
 		return consentMiddleware(db, next)
@@ -483,6 +528,7 @@ func main() {
 	apiMux.Handle("POST /consent/grant/{request_id}", authMiddleware(http.HandlerFunc(handleGrantConsent)))
 	apiMux.Handle("GET /records/patient/{patient_id}", authMiddleware(doctorMiddleware(consentCheck(handleGetPatientRecords))))
 	apiMux.Handle("GET /ledger", authMiddleware(doctorMiddleware(handleGetLedger)))
+	apiMux.Handle("GET /log-access", authMiddleware(http.HandlerFunc(handleGetAccessLog)))
 
 	// --- LOGIKA REVERSE PROXY (PENJAGA GERBANG) ---
 	ipfsGatewayURL, _ := url.Parse("http://ipfs:8080")

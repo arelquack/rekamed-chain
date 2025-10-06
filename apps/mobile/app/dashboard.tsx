@@ -92,7 +92,9 @@ export default function DashboardScreen() {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Button title="Manajemen Izin Akses" onPress={() => { router.push('/consent') }} />
+                <Button title="Manajemen Izin Akses" onPress={() => router.push('/consent')} />
+                <View style={{ marginTop: 10 }} />
+                <Button title="Lihat Log Akses" onPress={() => router.push('/logaccess')} />
             </View>
         {records.length > 0 ? (
             <FlatList
