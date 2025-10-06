@@ -1,9 +1,7 @@
-// apps/web/src/app/login/page.tsx
-
-'use client'; // Butuh interaktivitas, jadi ini Client Component
+'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation'; // Import hook untuk navigasi
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +12,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const router = useRouter(); // Inisialisasi router
+    const { login } = useAuth(); // Ambil fungsi login dari AuthContext
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -33,15 +31,12 @@ export default function LoginPage() {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error('Email atau password salah.');
+            throw new Error(data.message || 'Email atau password salah.');
         }
 
-        // Jika login berhasil, simpan token ke localStorage
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('role', data.role);
-        
-        // Arahkan user ke halaman dashboard
-        router.push('/dashboard');
+        // Jika login berhasil, panggil fungsi login dari context
+        // Fungsi ini akan otomatis menyimpan token, role, dan mengarahkan ke dashboard
+        login(data.token, data.role);
 
         } catch (err) {
         if (err instanceof Error) {
@@ -55,7 +50,7 @@ export default function LoginPage() {
     };
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-gray-100">
+        <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-100">
         <Card className="w-[350px]">
             <CardHeader>
             <CardTitle>Login</CardTitle>

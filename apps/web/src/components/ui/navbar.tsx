@@ -1,24 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 
 export function Navbar() {
-    const router = useRouter();
-    const pathname = usePathname();
+    const { token, logout } = useAuth(); 
 
     // Jangan tampilkan Navbar di halaman login & register
-    if (pathname === '/login' || pathname === '/register') {
+    if (!token) {
         return null;
     }
 
     const handleLogout = () => {
-        // Hapus data sesi dari localStorage
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        // Arahkan ke halaman login
-        router.push('/login');
+        logout();
     };
 
     return (

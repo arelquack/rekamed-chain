@@ -2,101 +2,105 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Definisikan tipe data untuk rekam medis, sesuai dengan struct di Go
+// Definisikan tipe data untuk rekam medis
 interface MedicalRecord {
     id: string;
     patient_id: string;
     doctor_name: string;
     diagnosis: string;
     notes: string;
+    attachment_cid: string;
     created_at: string;
-    attachment_cid?: string;
 }
 
 export default function DashboardPage() {
+    const { token, role, isLoading: isAuthLoading } = useAuth();
+    const router = useRouter();
+    
     const [records, setRecords] = useState<MedicalRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [userRole, setUserRole] = useState('');
 
     useEffect(() => {
-        // Ambil role user dari localStorage
-        const role = localStorage.getItem('role');
-        setUserRole(role || '');
-
-        const fetchRecords = async () => {
-        // Ambil token dari localStorage
-        const token = localStorage.getItem('token');
+        // Jika proses pengecekan sesi dari AuthContext sudah selesai...
+        if (!isAuthLoading) {
+        // ...dan ternyata tidak ada token (user belum login), usir ke halaman login.
         if (!token) {
-            setError('Anda harus login terlebih dahulu.');
-            setIsLoading(false);
+            router.push('/login');
             return;
         }
 
-        try {
+        // Jika ada token (user sudah login), baru kita ambil data rekam medisnya.
+        const fetchRecords = async () => {
+            setIsLoading(true);
+            setError('');
+            try {
             const response = await fetch('http://localhost:8080/records', {
-            headers: {
-                // Lampirkan token untuk otentikasi
-                'Authorization': `Bearer ${token}`,
-            },
+                headers: { 'Authorization': `Bearer ${token}` },
             });
 
             if (!response.ok) {
-            throw new Error('Gagal mengambil data rekam medis.');
+                throw new Error('Gagal mengambil data rekam medis.');
             }
 
             const data: MedicalRecord[] = await response.json();
             setRecords(data);
 
-        } catch (err) {
+            } catch (err) {
             if (err instanceof Error) {
-            setError(err.message);
+                setError(err.message);
             } else {
-            setError('Terjadi kesalahan yang tidak diketahui.');
+                setError('Terjadi kesalahan yang tidak diketahui.');
             }
-        } finally {
+            } finally {
             setIsLoading(false);
-        }
+            }
         };
-
+        
         fetchRecords();
-    }, []); // Array kosong berarti useEffect ini hanya berjalan sekali saat komponen dimuat
+        }
+    }, [token, isAuthLoading, router]); // Effect ini akan berjalan setiap kali status login berubah
+
+    // Tampilkan loading jika sesi sedang diverifikasi atau data sedang diambil
+    if (isAuthLoading || isLoading) {
+        return (
+        <div className="flex items-center justify-center p-8">
+            <p>Loading...</p>
+        </div>
+        );
+    }
 
     return (
-        <main className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-bold">Dashboard Riwayat Medis</h1>
-                    {userRole === 'doctor' && (
-                        <Link href="/records/new">
-                            <Button>+ Tambah Rekam Medis</Button>
-                        </Link>
-                    )}
-
-                    <div className="flex items-center gap-4">
-                        <Link href="/consent">
-                            <Button variant="outline">Manajemen Izin</Button>
-                        </Link>
-                        {userRole === 'doctor' && (
-                            <> {/* Gunakan fragment untuk mengelompokkan */}
-                            <Link href="/ledger">
-                                <Button variant="outline">Lihat Ledger</Button>
-                            </Link>
-                            <Link href="/records/new">
-                                <Button>+ Tambah Rekam Medis</Button>
-                            </Link>
-                            </>
-                        )}
-                        </div>
+        <div className="min-h-screen bg-gray-100 p-8">
+        <div className="max-w-4xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold">Dashboard Riwayat Medis</h1>
+            <div className="flex items-center gap-4">
+                <Link href="/consent">
+                <Button variant="outline">Manajemen Izin</Button>
+                </Link>
+                {/* Tampilkan tombol HANYA jika rolenya adalah 'doctor' */}
+                {role === 'doctor' && (
+                <>
+                    <Link href="/ledger">
+                    <Button variant="outline">Lihat Ledger</Button>
+                    </Link>
+                    <Link href="/records/new">
+                    <Button>+ Tambah Rekam Medis</Button>
+                    </Link>
+                </>
+                )}
+            </div>
             </div>
 
-            {isLoading && <p>Memuat riwayat medis...</p>}
             {error && <p className="text-red-600">{error}</p>}
 
-            {!isLoading && !error && (
+            {!error && (
             <div className="space-y-4">
                 {records.length > 0 ? (
                 records.map((record) => (
@@ -112,19 +116,19 @@ export default function DashboardPage() {
                     <CardContent>
                         <p>{record.notes}</p>
                         {record.attachment_cid && (
-                            <div className="mt-4">
+                        <div className="mt-4">
                             <a
-                                href={`http://localhost:8081/ipfs/${record.attachment_cid}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-blue-600 hover:underline"
+                            href={`http://localhost:8081/ipfs/${record.attachment_cid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline"
                             >
-                                Lihat Lampiran
+                            Lihat Lampiran
                             </a>
                             <p className="text-xs text-gray-500 font-mono mt-1">
-                                CID: {record.attachment_cid}
+                            CID: {record.attachment_cid}
                             </p>
-                            </div>
+                        </div>
                         )}
                     </CardContent>
                     </Card>
@@ -135,6 +139,6 @@ export default function DashboardPage() {
             </div>
             )}
         </div>
-        </main>
+        </div>
     );
 }
