@@ -103,9 +103,15 @@ type LedgerBlock struct {
 type AccessLog struct {
 	DoctorName      string    `json:"doctor_name"`
 	Action          string    `json:"action"`
-	RecordDiagnosis string    `json:"record_diagnosis"` // Diagnosis dari record yg diakses
+	RecordDiagnosis string    `json:"record_diagnosis"`
 	Timestamp       time.Time `json:"timestamp"`
 	Status          string    `json:"status"`
+}
+
+type PublicUser struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 // --- MIDDLEWARES ---
@@ -515,6 +521,41 @@ func main() {
 		json.NewEncoder(w).Encode(logs)
 	})
 
+	handleSearchUsers := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Ambil query pencarian dari URL, contoh: /users/search?q=nama
+		query := r.URL.Query().Get("q")
+		if len(query) < 3 { // Batasi agar pencarian minimal 3 karakter
+			http.Error(w, "Query pencarian minimal 3 karakter", http.StatusBadRequest)
+			return
+		}
+
+		sqlQuery := `
+			SELECT id, name, email FROM users 
+			WHERE role = 'patient' AND (name ILIKE $1 OR email ILIKE $1)
+			LIMIT 10;
+		`
+		// 'ILIKE' agar tidak case-sensitive, '%' untuk pencarian parsial
+		rows, err := db.Query(r.Context(), sqlQuery, "%"+query+"%")
+		if err != nil {
+			http.Error(w, "Gagal mencari user", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		users := make([]PublicUser, 0)
+		for rows.Next() {
+			var user PublicUser
+			if err := rows.Scan(&user.ID, &user.Name, &user.Email); err != nil {
+				http.Error(w, "Gagal memproses data user", http.StatusInternalServerError)
+				return
+			}
+			users = append(users, user)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
+	})
+
 	// Middleware untuk consent butuh akses ke DB, jadi kita bungkus seperti ini
 	consentCheck := func(next http.Handler) http.Handler {
 		return consentMiddleware(db, next)
@@ -529,6 +570,7 @@ func main() {
 	apiMux.Handle("GET /records/patient/{patient_id}", authMiddleware(doctorMiddleware(consentCheck(handleGetPatientRecords))))
 	apiMux.Handle("GET /ledger", authMiddleware(doctorMiddleware(handleGetLedger)))
 	apiMux.Handle("GET /log-access", authMiddleware(http.HandlerFunc(handleGetAccessLog)))
+	apiMux.Handle("GET /users/search", authMiddleware(doctorMiddleware(handleSearchUsers)))
 
 	// --- LOGIKA REVERSE PROXY (PENJAGA GERBANG) ---
 	ipfsGatewayURL, _ := url.Parse("http://ipfs:8080")

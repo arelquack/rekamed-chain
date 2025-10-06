@@ -34,6 +34,9 @@ export function Navbar() {
                 <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
                 Dashboard
                 </Link>
+                <Link href="/patients" className="text-gray-600 hover:text-gray-900">
+                    Pasien
+                </Link>
                 <Button onClick={handleLogout} variant="destructive">
                 Logout
                 </Button>
