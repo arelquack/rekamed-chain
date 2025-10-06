@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
 
 interface PublicUser {
   id: string;
@@ -101,9 +102,15 @@ export default function PatientsPage() {
                   <CardTitle>{user.name}</CardTitle>
                   <CardDescription>{user.email}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  {/* Hubungkan tombol ke fungsi handleRequestConsent */}
-                  <Button className="w-full" onClick={() => handleRequestConsent(user.id)}>
+                <CardContent className="space-y-2">
+                  <Link href={`/patients/${user.id}`}>
+                    <Button className="w-full">Lihat Detail</Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleRequestConsent(user.id)}
+                  >
                     Minta Izin Akses
                   </Button>
                 </CardContent>
