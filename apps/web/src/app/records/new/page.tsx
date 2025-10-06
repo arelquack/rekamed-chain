@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ export default function NewRecordPage() {
 
     const [message, setMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -48,11 +50,10 @@ export default function NewRecordPage() {
             if (!uploadResponse.ok) {
             throw new Error(uploadData.message || 'Gagal upload file.');
             }
-            attachmentCid = uploadData.cid; // Simpan CID yang didapat
-            setMessage(`File berhasil di-upload. CID: ${attachmentCid}`);
+            attachmentCid = uploadData.cid;
         }
 
-        // TAHAP 2: KIRIM DATA REKAM MEDIS (TERMASUK CID JIKA ADA)
+        // TAHAP 2: KIRIM DATA REKAM MEDIS
         const recordResponse = await fetch('http://localhost:8080/records', {
             method: 'POST',
             headers: {
@@ -63,7 +64,7 @@ export default function NewRecordPage() {
             patient_id: patientId,
             diagnosis,
             notes,
-            attachment_cid: attachmentCid, // Sertakan CID di sini
+            attachment_cid: attachmentCid,
             }),
         });
 
@@ -72,19 +73,15 @@ export default function NewRecordPage() {
             throw new Error(recordData.message || 'Gagal menambahkan rekam medis.');
         }
         
-        setMessage(`Sukses! ID: ${recordData.recordID} | Hash Blok: ${recordData.blockHash}`);
-        // Kosongkan form setelah sukses
-        setPatientId('');
-        setDiagnosis('');
-        setNotes('');
-        setFile(null);
-        // Reset input file
-        const fileInput = document.getElementById('attachment') as HTMLInputElement;
-        if(fileInput) fileInput.value = "";
+        alert('Sukses! Rekam medis berhasil ditambahkan.');
+
+        // Alihkan dokter kembali ke halaman detail pasien yang baru di-update
+        router.push(`/patients/${patientId}`);
 
         } catch (error) {
         if (error instanceof Error) {
             setMessage(`Error: ${error.message}`);
+            alert(`Error: ${error.message}`);
         } else {
             setMessage('Terjadi kesalahan yang tidak diketahui.');
         }
@@ -94,7 +91,7 @@ export default function NewRecordPage() {
     };
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-gray-100">
+        <main className="flex min-h-screen items-center justify-center bg-gray-100 p-8">
         <Card className="w-[450px]">
             <CardHeader>
             <CardTitle>Tambah Rekam Medis Baru</CardTitle>
