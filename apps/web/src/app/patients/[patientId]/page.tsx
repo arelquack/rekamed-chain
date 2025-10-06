@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 interface MedicalRecord {
     id: string;
@@ -97,6 +98,11 @@ export default function PatientDetailPage() {
         <div className="p-8 bg-gray-100 min-h-screen">
         <div className="max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">Detail Riwayat Pasien</h1>
+            {!isLoading && !error && (
+            <Link href={`/records/new?patientId=${patientId}`}>
+                <Button>+ Tambah Rekam Medis untuk Pasien Ini</Button>
+            </Link>
+            )}
             <p className="text-sm text-gray-500 mb-4 font-mono">ID: {patientId}</p>
 
             {isLoading && <p>Memuat data...</p>}

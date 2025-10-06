@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,14 @@ export default function NewRecordPage() {
     const [message, setMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const idFromUrl = searchParams.get('patientId');
+        if (idFromUrl) {
+        setPatientId(idFromUrl); // Isi state dengan ID dari URL
+        }
+    }, [searchParams]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -108,6 +116,7 @@ export default function NewRecordPage() {
                     value={patientId}
                     onChange={(e) => setPatientId(e.target.value)}
                     required
+                    readOnly={searchParams.has('patientId')}
                     />
                 </div>
                 <div className="flex flex-col space-y-1.5">
