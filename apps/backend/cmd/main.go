@@ -262,9 +262,20 @@ func main() {
 			http.Error(w, "Request body tidak valid", http.StatusBadRequest)
 			return
 		}
+
+		var doctorName string
+		err := db.QueryRow(r.Context(), `SELECT name FROM users WHERE id = $1`, doctorID).Scan(&doctorName)
+		if err != nil {
+			log.Printf("Gagal mengambil nama dokter: %v", err)
+			http.Error(w, "Gagal memverifikasi data dokter", http.StatusInternalServerError)
+			return
+		}
+
+		trimmedPatientID := strings.TrimSpace(payload.PatientID)
+
 		sqlQuery := `INSERT INTO medical_records (patient_id, doctor_name, diagnosis, notes, attachment_cid) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 		var recordID string
-		err := db.QueryRow(r.Context(), sqlQuery, payload.PatientID, "dr. "+doctorID, payload.Diagnosis, payload.Notes, payload.AttachmentCID).Scan(&recordID)
+		err = db.QueryRow(r.Context(), sqlQuery, trimmedPatientID, "dr. "+doctorName, payload.Diagnosis, payload.Notes, payload.AttachmentCID).Scan(&recordID)
 		if err != nil {
 			log.Printf("Gagal menyimpan rekam medis: %v", err)
 			http.Error(w, "Gagal menyimpan rekam medis", http.StatusInternalServerError)
@@ -280,7 +291,7 @@ func main() {
 				return
 			}
 		}
-		recordData := fmt.Sprintf("%s%s%s%s%s%s", recordID, payload.PatientID, "dr. "+doctorID, payload.Diagnosis, payload.Notes, payload.AttachmentCID)
+		recordData := fmt.Sprintf("%s%s%s%s%s%s", recordID, payload.PatientID, "dr. "+doctorName, payload.Diagnosis, payload.Notes, payload.AttachmentCID)
 		dataHash := fmt.Sprintf("%x", sha256.Sum256([]byte(recordData)))
 		_, err = db.Exec(r.Context(), `INSERT INTO blockchain_ledger (record_id, data_hash, previous_hash) VALUES ($1, $2, $3)`, recordID, dataHash, previousHash)
 		if err != nil {

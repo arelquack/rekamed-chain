@@ -1,10 +1,14 @@
 FROM node:18-alpine
 
+# Install rsync
+RUN apk add --no-cache rsync
+
 WORKDIR /app
 
 COPY blockchain/package.json blockchain/pnpm-lock.yaml* ./
 RUN npm install -g pnpm && pnpm install
 
+# Gunakan rsync untuk menghindari konflik
 COPY blockchain/ .
 
 EXPOSE 8545

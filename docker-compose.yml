@@ -1,25 +1,23 @@
 version: '3.8'
 
 services:
-  # Layanan Backend (Go)
   backend:
     container_name: rekamedchain_backend
     build:
       context: .
       dockerfile: ./infra/Dockerfile.backend
     ports:
-      - "8080:8080" # Map port 8080 host ke 8080 container
+      - "8080:8080"
     volumes:
-      - ./apps/backend:/app # Sinkronisasi kode backend untuk live-reload
+      - ./apps/backend:/app
     depends_on:
       - db
       - ipfs
-    environment:
+    env_file:
       - .env
     networks:
       - rekamed_net
 
-  # Layanan Frontend (Next.js)
   web:
     container_name: rekamedchain_web
     build:
@@ -28,47 +26,43 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Hubungkan source code untuk hot-reloading
-      # Kecuali node_modules agar tidak menimpa yang di dalam kontainer
       - .:/app
       - /app/node_modules
     command: sh -c "pnpm install && pnpm --filter web dev"
+    environment:
+      - CI=true
 
-  # Database (PostgreSQL)
   db:
     container_name: rekamedchain_db
     image: postgres:15-alpine
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Persistensi data
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=rekamedchain
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
     networks:
       - rekamed_net
 
-  # Penyimpanan Terdistribusi (IPFS)
   ipfs:
     container_name: rekamedchain_ipfs
     image: ipfs/go-ipfs:latest
     ports:
-      - "4001:4001" # TCP
-      - "5001:5001" # API
-      - "8081:8080" # Gateway
+      - "4001:4001"
+      - "5001:5001"
+      - "8081:8080"
     volumes:
       - ipfs_data:/data/ipfs
     networks:
       - rekamed_net
-
+      
   hardhat:
     container_name: rekamedchain_hardhat
     build:
       context: .
       dockerfile: infra/Dockerfile.hardhat
     ports:
-      - "8545:8545" # Port standar Ethereum RPC
+      - "8545:8545"
     networks:
       - rekamed_net
 
