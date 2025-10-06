@@ -1,3 +1,4 @@
+// apps/web/src/app/patients/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -17,6 +18,7 @@ export default function PatientsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('Silakan cari pasien berdasarkan nama atau email.');
 
+  // Fungsi untuk handle pencarian
   const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -29,7 +31,7 @@ export default function PatientsPage() {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Pencarian gagal.');
-      
+        
       const data = await response.json();
       setResults(data);
       if (data.length === 0) {
@@ -42,6 +44,38 @@ export default function PatientsPage() {
       setIsLoading(false);
     }
   };
+
+  // --- FUNGSI BARU UNTUK MINTA IZIN ---
+  const handleRequestConsent = async (patientId: string) => {
+    setMessage(`Mengirim permintaan untuk user ${patientId}...`);
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch(`http://localhost:8080/consent/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ patient_id: patientId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Gagal mengirim permintaan izin.');
+      }
+      
+      const data = await response.json();
+      alert(`Sukses! Permintaan izin berhasil dikirim. ID Permintaan: ${data.request_id}`);
+      setMessage('Permintaan berhasil dikirim. Cek status di halaman dashboard pasien.');
+
+    } catch (error) {
+      if(error instanceof Error) {
+        alert(`Error: ${error.message}`);
+        setMessage(`Error: ${error.message}`);
+      }
+    }
+  };
+
 
   return (
     <div className="p-8">
@@ -56,8 +90,11 @@ export default function PatientsPage() {
           <Button type="submit" disabled={isLoading}>{isLoading ? 'Mencari...' : 'Cari'}</Button>
         </form>
 
+        {/* Menampilkan pesan status di atas hasil pencarian */}
+        {!isLoading && <p className="text-sm text-gray-600 mb-4">{message}</p>}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {results.length > 0 ? (
+          {results.length > 0 &&
             results.map((user) => (
               <Card key={user.id}>
                 <CardHeader>
@@ -65,14 +102,13 @@ export default function PatientsPage() {
                   <CardDescription>{user.email}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Nanti tombol ini bisa dipakai untuk minta izin */}
-                  <Button className="w-full">Minta Izin Akses</Button>
+                  {/* Hubungkan tombol ke fungsi handleRequestConsent */}
+                  <Button className="w-full" onClick={() => handleRequestConsent(user.id)}>
+                    Minta Izin Akses
+                  </Button>
                 </CardContent>
               </Card>
-            ))
-          ) : (
-            !isLoading && <p>{message}</p>
-          )}
+            ))}
         </div>
       </div>
     </div>
