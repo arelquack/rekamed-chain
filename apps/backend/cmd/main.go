@@ -594,6 +594,42 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"message": "Permintaan berhasil disetujui dengan tanda tangan digital (simulasi)"})
 	})
 
+	handleGetPatientAccessLog := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		patientID := r.PathValue("patient_id")
+
+		sqlQuery := `
+			SELECT u.name, 'membuat rekam medis' as action, mr.diagnosis, bl.created_at, 'terverifikasi' as status
+			FROM blockchain_ledger bl
+			JOIN medical_records mr ON bl.record_id = mr.id
+			JOIN users u ON mr.patient_id = u.id -- Ini asumsi dokter membuat log untuk pasiennya sendiri
+			WHERE mr.patient_id = $1
+			UNION ALL
+			SELECT u.name, 'meminta izin akses' as action, '' as diagnosis, cr.created_at, cr.status
+			FROM consent_requests cr
+			JOIN users u ON cr.doctor_id = u.id
+			WHERE cr.patient_id = $1
+			ORDER BY created_at DESC;
+		`
+		rows, err := db.Query(r.Context(), sqlQuery, patientID)
+		if err != nil {
+			http.Error(w, "Gagal mengambil data log akses", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		logs := make([]AccessLog, 0)
+		for rows.Next() {
+			var logItem AccessLog
+			if err := rows.Scan(&logItem.DoctorName, &logItem.Action, &logItem.RecordDiagnosis, &logItem.Timestamp, &logItem.Status); err != nil {
+				http.Error(w, "Gagal memproses data log", http.StatusInternalServerError)
+				return
+			}
+			logs = append(logs, logItem)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(logs)
+	})
+
 	// Middleware untuk consent butuh akses ke DB, jadi kita bungkus seperti ini
 	consentCheck := func(next http.Handler) http.Handler {
 		return consentMiddleware(db, next)
@@ -609,6 +645,7 @@ func main() {
 	apiMux.Handle("GET /ledger", authMiddleware(doctorMiddleware(handleGetLedger)))
 	apiMux.Handle("GET /log-access", authMiddleware(http.HandlerFunc(handleGetAccessLog)))
 	apiMux.Handle("GET /users/search", authMiddleware(doctorMiddleware(handleSearchUsers)))
+	apiMux.Handle("GET /log-access/{patient_id}", authMiddleware(doctorMiddleware(consentCheck(handleGetPatientAccessLog))))
 
 	// --- LOGIKA REVERSE PROXY (PENJAGA GERBANG) ---
 	ipfsGatewayURL, _ := url.Parse("http://ipfs:8080")
