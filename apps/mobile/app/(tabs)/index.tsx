@@ -109,7 +109,7 @@ export default function DashboardScreen() {
                     <Feather name="shield" size={20} color="#007AFF" />
                 </View>
                 <View style={{flex: 1}}>
-                    <Text style={styles.consentText}>Dr. Budi dari Poliklinik Penyakit Dalam meminta akses ke riwayat Anda.</Text>
+                    <Text style={styles.consentText}>Dr. Arief Spesialis Anak Dalam meminta akses ke riwayat Anda.</Text>
                     <TouchableOpacity onPress={() => router.push('/(tabs)/izin')}>
                         <Text style={styles.consentLink}>Lihat Permintaan Akses</Text>
                     </TouchableOpacity>
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f4f8' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, textAlign: 'center' },
   errorText: { color: 'red' },
-  userHeader: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 15, alignItems: 'center', backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  userHeader: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 15, alignItems: 'center', backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginTop: Platform.OS === 'android' ? 25 : 0 },
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#e0eafc', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   userName: { fontSize: 18, fontWeight: 'bold', color: '#1a202c' },
   userId: { fontSize: 14, color: 'gray' },

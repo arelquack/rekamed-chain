@@ -9,6 +9,7 @@ export default function RootLayout() {
       <Stack.Screen name="dashboard" options={{ title: 'Dashboard Pasien' }} />
       <Stack.Screen name="consent" options={{ title: 'Manajemen Izin' }} />
       <Stack.Screen name="logaccess" options={{ title: 'Log Akses' }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );
 }

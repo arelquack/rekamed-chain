@@ -8,6 +8,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#007AFF',
+        headerShown: false,
       }}>
       <Tabs.Screen
         name="index" // Ini akan menunjuk ke file index.tsx (dashboard kita)
