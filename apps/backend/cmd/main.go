@@ -580,18 +580,74 @@ func main() {
 		patientID := r.Context().Value(userIDKey).(string)
 		requestID := r.PathValue("request_id")
 
-		// Di aplikasi nyata, di sini kita akan memverifikasi tanda tangan digitalnya.
-		// Tapi untuk MVP, kita anggap panggilan ke endpoint ini sudah cukup sebagai bukti persetujuan.
-
-		sql := `UPDATE consent_requests SET status = 'granted', updated_at = NOW() WHERE id = $1 AND patient_id = $2`
-		res, err := db.Exec(r.Context(), sql, requestID, patientID)
-		if err != nil || res.RowsAffected() == 0 {
-			http.Error(w, "Gagal menyetujui permintaan atau permintaan tidak ditemukan", http.StatusNotFound)
+		var payload struct {
+			Signature string `json:"signature"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, "Request body tidak valid, signature dibutuhkan", http.StatusBadRequest)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"message": "Permintaan berhasil disetujui dengan tanda tangan digital (simulasi)"})
+		var publicKeyHex string
+		err := db.QueryRow(r.Context(), `SELECT public_key FROM users WHERE id = $1`, patientID).Scan(&publicKeyHex)
+		if err != nil {
+			http.Error(w, "Gagal mengambil kunci publik pasien", http.StatusNotFound)
+			return
+		}
+		publicKeyBytes, err := hex.DecodeString(publicKeyHex)
+		if err != nil {
+			http.Error(w, "Format public key tidak valid", http.StatusInternalServerError)
+			return
+		}
+
+		// Verifikasi tanda tangan
+		// Prefix \x19Ethereum Signed Message:\n<panjang pesan> penting agar cocok dengan ethers.js
+		message := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(requestID), requestID)
+		messageHash := crypto.Keccak256Hash([]byte(message))
+
+		signatureBytes, err := hex.DecodeString(payload.Signature[2:]) // Hapus prefix "0x"
+		if err != nil {
+			http.Error(w, "Format signature tidak valid", http.StatusBadRequest)
+			return
+		}
+
+		// Signature Ethereum punya byte `v` di akhir (00 atau 01). Untuk verifikasi, kita hanya butuh 64 byte pertama (r,s).
+		if len(signatureBytes) != 65 {
+			http.Error(w, "Panjang signature tidak valid", http.StatusBadRequest)
+			return
+		}
+		// Normalisasi byte `v`
+		if signatureBytes[64] == 27 || signatureBytes[64] == 28 {
+			signatureBytes[64] -= 27
+		}
+
+		// Pulihkan public key dari signature
+		recoveredPubKey, err := crypto.SigToPub(messageHash.Bytes(), signatureBytes)
+		if err != nil {
+			http.Error(w, "Gagal memulihkan public key dari signature", http.StatusInternalServerError)
+			return
+		}
+		recoveredKeyBytes := crypto.FromECDSAPub(recoveredPubKey)
+
+		// --- "KAMERA CCTV" KITA ---
+		log.Printf("DEBUG: Kunci dari DB       : %x", publicKeyBytes)
+		log.Printf("DEBUG: Kunci dari Signature : %x", recoveredKeyBytes)
+		// -------------------------
+
+		// Bandingkan kunci dari DB dengan kunci dari signature
+		if string(recoveredKeyBytes) != string(publicKeyBytes) {
+			http.Error(w, "Tanda tangan tidak valid!", http.StatusUnauthorized)
+			return
+		}
+
+		// Jika tanda tangan valid, baru update status consent
+		sql := `UPDATE consent_requests SET status = 'granted', updated_at = NOW() WHERE id = $1 AND patient_id = $2`
+		res, err := db.Exec(r.Context(), sql, requestID, patientID)
+		if err != nil || res.RowsAffected() == 0 {
+			http.Error(w, "Gagal menyetujui permintaan", http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"message": "Permintaan berhasil disetujui (Tanda Tangan Valid)"})
 	})
 
 	handleGetPatientAccessLog := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

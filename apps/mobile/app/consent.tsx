@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Button, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
+import { ethers } from 'ethers';
 
 // PASTIKAN URL NGROK INI SESUAI DENGAN YANG ADA DI TERMINAL LO
 const API_URL = 'https://fatigueless-elfrieda-scrimpier.ngrok-free.dev'; // <-- GANTI DENGAN URL NGROK-MU
@@ -51,29 +52,43 @@ export default function ConsentScreen() {
 
   const handleApprove = async (requestId: string) => {
     const token = await AsyncStorage.getItem('token');
-    const privateKey = await AsyncStorage.getItem('private_key');
+    const privateKeyHex = await AsyncStorage.getItem('private_key');
 
-    if (!token || !privateKey) {
-      Alert.alert('Error', 'Kunci otentikasi tidak ditemukan. Silakan login ulang.');
+    if (!token || !privateKeyHex) {
+      Alert.alert('Error', 'Kunci otentikasi atau kunci privat tidak ditemukan.');
       return;
     }
-
+    
     try {
-      // GANTI ENDPOINT DARI 'grant' MENJADI 'sign'
+      const wallet = new ethers.Wallet(privateKeyHex);
+      const messageToSign = requestId;
+      const signature = await wallet.signMessage(messageToSign);
+
       const response = await fetch(`${API_URL}/consent/sign/${requestId}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        // Di aplikasi nyata, kita akan mengirim signature di sini
-        // body: JSON.stringify({ signature: "..." }) 
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ signature: signature })
       });
 
-      if (!response.ok) throw new Error('Gagal menandatangani persetujuan.');
+      // --- DEBUGGER DIMULAI DI SINI ---
+      if (!response.ok) {
+        // Coba baca respon error dari server sebagai teks
+        const errorText = await response.text();
+        throw new Error(`Server merespon dengan status ${response.status}: ${errorText}`);
+      }
       
-      Alert.alert('Sukses', 'Permintaan berhasil disetujui secara digital (simulasi)!');
-      fetchRequests(); // Refresh data
+      const data = await response.json();
+      Alert.alert('Sukses', data.message || 'Permintaan berhasil disetujui!');
+      fetchRequests();
 
     } catch (err) {
-      if (err instanceof Error) Alert.alert('Error', err.message);
+      if (err instanceof Error) {
+        // Tampilkan pesan error yang lebih detail
+        Alert.alert('DEBUG: Terjadi Error', err.message);
+      }
     }
   };
 
