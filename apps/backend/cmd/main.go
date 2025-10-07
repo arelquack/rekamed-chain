@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/ipfs/boxo/files"
 	ipfshttp "github.com/ipfs/kubo/client/rpc"
@@ -176,6 +179,20 @@ func consentMiddleware(db *pgxpool.Pool, next http.Handler) http.Handler {
 	})
 }
 
+// --- FUNGSI-FUNGSI BARU UNTUK Kriptografi ---
+func generateKeyPair() (*ecdsa.PrivateKey, error) {
+	return crypto.GenerateKey()
+}
+
+func privateKeyToHex(privateKey *ecdsa.PrivateKey) string {
+	return hex.EncodeToString(crypto.FromECDSA(privateKey))
+}
+
+func publicKeyToHex(privateKey *ecdsa.PrivateKey) string {
+	publicKeyBytes := crypto.FromECDSAPub(&privateKey.PublicKey)
+	return hex.EncodeToString(publicKeyBytes)
+}
+
 func main() {
 	// --- KONEKSI ---
 	dbUrl := os.Getenv("DB_SOURCE")
@@ -222,17 +239,34 @@ func main() {
 		if payload.Role == "doctor" {
 			role = "doctor"
 		}
-		sqlQuery := `INSERT INTO users (name, email, hashed_password, role) VALUES ($1, $2, $3, $4) RETURNING id`
+
+		// --- LOGIKA BARU: Buat Kunci Kriptografi ---
+		privateKey, err := generateKeyPair()
+		if err != nil {
+			http.Error(w, "Gagal membuat kunci kriptografi", http.StatusInternalServerError)
+			return
+		}
+		privateKeyHex := privateKeyToHex(privateKey)
+		publicKeyHex := publicKeyToHex(privateKey)
+
+		// --- UPDATE SQL: Simpan user BARU beserta public key ---
+		sqlQuery := `INSERT INTO users (name, email, hashed_password, role, public_key) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 		var userID string
-		err = db.QueryRow(context.Background(), sqlQuery, payload.Name, payload.Email, string(hashedPassword), role).Scan(&userID)
+		err = db.QueryRow(context.Background(), sqlQuery, payload.Name, payload.Email, string(hashedPassword), role, publicKeyHex).Scan(&userID)
 		if err != nil {
 			log.Printf("Gagal menyimpan user: %v", err)
 			http.Error(w, "Gagal menyimpan user, mungkin email sudah terdaftar?", http.StatusInternalServerError)
 			return
 		}
+
+		// Kirim private key ke user (HANYA SEKALI SAAT REGISTRASI!)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Registrasi berhasil", "userID": userID})
+		json.NewEncoder(w).Encode(map[string]string{
+			"message":     "Registrasi berhasil",
+			"userID":      userID,
+			"private_key": privateKeyHex, // Kirim ini agar bisa disimpan di HP pasien
+		})
 	})
 
 	apiMux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
@@ -419,20 +453,6 @@ func main() {
 		json.NewEncoder(w).Encode(requests)
 	})
 
-	// 3. Handler untuk pasien menyetujui permintaan
-	handleGrantConsent := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		patientID := r.Context().Value(userIDKey).(string)
-		requestID := r.PathValue("request_id") // Ambil ID dari URL (e.g., /consent/grant/xxxxx)
-
-		sql := `UPDATE consent_requests SET status = 'granted', updated_at = NOW() WHERE id = $1 AND patient_id = $2`
-		res, err := db.Exec(r.Context(), sql, requestID, patientID)
-		if err != nil || res.RowsAffected() == 0 {
-			http.Error(w, "Gagal menyetujui permintaan atau permintaan tidak ditemukan", http.StatusNotFound)
-			return
-		}
-		json.NewEncoder(w).Encode(map[string]string{"message": "Permintaan berhasil disetujui"})
-	})
-
 	handleGetPatientRecords := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		patientID := r.PathValue("patient_id")
 
@@ -556,6 +576,24 @@ func main() {
 		json.NewEncoder(w).Encode(users)
 	})
 
+	handleSignConsent := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		patientID := r.Context().Value(userIDKey).(string)
+		requestID := r.PathValue("request_id")
+
+		// Di aplikasi nyata, di sini kita akan memverifikasi tanda tangan digitalnya.
+		// Tapi untuk MVP, kita anggap panggilan ke endpoint ini sudah cukup sebagai bukti persetujuan.
+
+		sql := `UPDATE consent_requests SET status = 'granted', updated_at = NOW() WHERE id = $1 AND patient_id = $2`
+		res, err := db.Exec(r.Context(), sql, requestID, patientID)
+		if err != nil || res.RowsAffected() == 0 {
+			http.Error(w, "Gagal menyetujui permintaan atau permintaan tidak ditemukan", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": "Permintaan berhasil disetujui dengan tanda tangan digital (simulasi)"})
+	})
+
 	// Middleware untuk consent butuh akses ke DB, jadi kita bungkus seperti ini
 	consentCheck := func(next http.Handler) http.Handler {
 		return consentMiddleware(db, next)
@@ -566,7 +604,7 @@ func main() {
 	apiMux.Handle("POST /upload", authMiddleware(doctorMiddleware(uploadHandler)))
 	apiMux.Handle("POST /consent/request", authMiddleware(doctorMiddleware(handleConsentRequest)))
 	apiMux.Handle("GET /consent/requests/me", authMiddleware(http.HandlerFunc(handleGetMyConsentRequests)))
-	apiMux.Handle("POST /consent/grant/{request_id}", authMiddleware(http.HandlerFunc(handleGrantConsent)))
+	apiMux.Handle("POST /consent/sign/{request_id}", authMiddleware(http.HandlerFunc(handleSignConsent)))
 	apiMux.Handle("GET /records/patient/{patient_id}", authMiddleware(doctorMiddleware(consentCheck(handleGetPatientRecords))))
 	apiMux.Handle("GET /ledger", authMiddleware(doctorMiddleware(handleGetLedger)))
 	apiMux.Handle("GET /log-access", authMiddleware(http.HandlerFunc(handleGetAccessLog)))
