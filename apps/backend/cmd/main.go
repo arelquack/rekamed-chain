@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -29,6 +33,7 @@ import (
 
 // Kunci rahasia untuk JWT
 var jwtKey = []byte("kunci_rahasia_super_aman_jangan_ditiru")
+var encryptionKey = []byte("ini_adalah_kunci_rahasia_32_byte") // Harus 32 byte untuk AES-256
 
 // --- Tipe & Kunci Konteks ---
 type contextKey string
@@ -193,6 +198,47 @@ func publicKeyToHex(privateKey *ecdsa.PrivateKey) string {
 	return hex.EncodeToString(publicKeyBytes)
 }
 
+// --- FUNGSI-FUNGSI BARU UNTUK ENKRIPSI ---
+func encrypt(stringToEncrypt string) (string, error) {
+	plaintext := []byte(stringToEncrypt)
+	block, err := aes.NewCipher(encryptionKey)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
+	return fmt.Sprintf("%x", ciphertext), nil
+}
+
+func decrypt(encryptedString string) (string, error) {
+	ciphertext, _ := hex.DecodeString(encryptedString)
+	block, err := aes.NewCipher(encryptionKey)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonceSize := gcm.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return "", fmt.Errorf("ciphertext too short")
+	}
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(plaintext), nil
+}
+
 func main() {
 	// --- KONEKSI ---
 	dbUrl := os.Getenv("DB_SOURCE")
@@ -311,6 +357,7 @@ func main() {
 			return
 		}
 
+		// --- LANGKAH BARU: Ambil nama dokter dari database ---
 		var doctorName string
 		err := db.QueryRow(r.Context(), `SELECT name FROM users WHERE id = $1`, doctorID).Scan(&doctorName)
 		if err != nil {
@@ -319,16 +366,31 @@ func main() {
 			return
 		}
 
-		trimmedPatientID := strings.TrimSpace(payload.PatientID)
+		// --- ENKRIPSI DATA SEBELUM DISIMPAN ---
+		encryptedDiagnosis, err := encrypt(payload.Diagnosis)
+		if err != nil {
+			log.Printf("Gagal enkripsi diagnosis: %v", err)
+			http.Error(w, "Gagal mengenkripsi diagnosis", http.StatusInternalServerError)
+			return
+		}
+		encryptedNotes, err := encrypt(payload.Notes)
+		if err != nil {
+			log.Printf("Gagal enkripsi catatan: %v", err)
+			http.Error(w, "Gagal mengenkripsi catatan", http.StatusInternalServerError)
+			return
+		}
 
+		// --- Langkah 1: Simpan rekam medis (data terenkripsi) seperti biasa ---
 		sqlQuery := `INSERT INTO medical_records (patient_id, doctor_name, diagnosis, notes, attachment_cid) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 		var recordID string
-		err = db.QueryRow(r.Context(), sqlQuery, trimmedPatientID, "dr. "+doctorName, payload.Diagnosis, payload.Notes, payload.AttachmentCID).Scan(&recordID)
+		err = db.QueryRow(r.Context(), sqlQuery, payload.PatientID, "dr. "+doctorName, encryptedDiagnosis, encryptedNotes, payload.AttachmentCID).Scan(&recordID)
 		if err != nil {
 			log.Printf("Gagal menyimpan rekam medis: %v", err)
 			http.Error(w, "Gagal menyimpan rekam medis", http.StatusInternalServerError)
 			return
 		}
+
+		// --- Langkah 2: Logika Blockchain (Simulasi) ---
 		var previousHash string
 		err = db.QueryRow(r.Context(), `SELECT data_hash FROM blockchain_ledger ORDER BY block_id DESC LIMIT 1`).Scan(&previousHash)
 		if err != nil {
@@ -339,8 +401,11 @@ func main() {
 				return
 			}
 		}
+
+		// Buat hash dari data asli (bukan yang terenkripsi) untuk integritas
 		recordData := fmt.Sprintf("%s%s%s%s%s%s", recordID, payload.PatientID, "dr. "+doctorName, payload.Diagnosis, payload.Notes, payload.AttachmentCID)
 		dataHash := fmt.Sprintf("%x", sha256.Sum256([]byte(recordData)))
+
 		_, err = db.Exec(r.Context(), `INSERT INTO blockchain_ledger (record_id, data_hash, previous_hash) VALUES ($1, $2, $3)`, recordID, dataHash, previousHash)
 		if err != nil {
 			log.Printf("Gagal menyimpan blok ke ledger: %v", err)
@@ -348,6 +413,8 @@ func main() {
 			return
 		}
 		log.Printf("Blok baru ditambahkan ke ledger. Hash: %s", dataHash)
+
+		// --- Langkah 3: Kirim respon sukses ---
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{
@@ -360,6 +427,7 @@ func main() {
 	getRecordsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		patientID := r.Context().Value(userIDKey).(string)
 		sqlQuery := `SELECT id, patient_id, doctor_name, diagnosis, notes, attachment_cid, created_at FROM medical_records WHERE patient_id = $1 ORDER BY created_at DESC`
+
 		rows, err := db.Query(context.Background(), sqlQuery, patientID)
 		if err != nil {
 			log.Printf("Gagal mengambil rekam medis: %v", err)
@@ -367,20 +435,41 @@ func main() {
 			return
 		}
 		defer rows.Close()
+
 		records := make([]MedicalRecord, 0)
 		for rows.Next() {
 			var record MedicalRecord
 			var attachmentCID sql.NullString
+			// Scan data terenkripsi dari DB
 			if err := rows.Scan(&record.ID, &record.PatientID, &record.DoctorName, &record.Diagnosis, &record.Notes, &attachmentCID, &record.CreatedAt); err != nil {
 				log.Printf("Gagal memindai baris data: %v", err)
 				http.Error(w, "Gagal memproses data", http.StatusInternalServerError)
 				return
 			}
+
+			// --- DEKRIPSI DATA SEBELUM DIKIRIM KE FRONTEND ---
+			decryptedDiagnosis, err := decrypt(record.Diagnosis)
+			if err == nil {
+				record.Diagnosis = decryptedDiagnosis
+			} else {
+				log.Printf("Gagal dekripsi diagnosis untuk record %s: %v", record.ID, err)
+				record.Diagnosis = "[Gagal dekripsi data]" // Tampilkan pesan error jika gagal
+			}
+
+			decryptedNotes, err := decrypt(record.Notes)
+			if err == nil {
+				record.Notes = decryptedNotes
+			} else {
+				log.Printf("Gagal dekripsi catatan untuk record %s: %v", record.ID, err)
+				record.Notes = "[Gagal dekripsi data]"
+			}
+
 			if attachmentCID.Valid {
 				record.AttachmentCID = attachmentCID.String
 			}
 			records = append(records, record)
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(records)
 	})
@@ -456,7 +545,6 @@ func main() {
 	handleGetPatientRecords := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		patientID := r.PathValue("patient_id")
 
-		// Logika query sama seperti getRecordsHandler, tapi pakai patientID dari URL
 		sqlQuery := `SELECT id, patient_id, doctor_name, diagnosis, notes, attachment_cid, created_at FROM medical_records WHERE patient_id = $1 ORDER BY created_at DESC`
 		rows, err := db.Query(r.Context(), sqlQuery, patientID)
 		if err != nil {
@@ -469,10 +557,29 @@ func main() {
 		for rows.Next() {
 			var record MedicalRecord
 			var attachmentCID sql.NullString
+			// Scan data terenkripsi dari DB
 			if err := rows.Scan(&record.ID, &record.PatientID, &record.DoctorName, &record.Diagnosis, &record.Notes, &attachmentCID, &record.CreatedAt); err != nil {
 				http.Error(w, "Gagal memproses data", http.StatusInternalServerError)
 				return
 			}
+
+			// --- LOGIKA DEKRIPSI YANG KITA SALIN DI SINI ---
+			decryptedDiagnosis, err := decrypt(record.Diagnosis)
+			if err == nil {
+				record.Diagnosis = decryptedDiagnosis
+			} else {
+				log.Printf("Gagal dekripsi diagnosis untuk record %s: %v", record.ID, err)
+				record.Diagnosis = "[Gagal dekripsi data]"
+			}
+
+			decryptedNotes, err := decrypt(record.Notes)
+			if err == nil {
+				record.Notes = decryptedNotes
+			} else {
+				log.Printf("Gagal dekripsi catatan untuk record %s: %v", record.ID, err)
+				record.Notes = "[Gagal dekripsi data]"
+			}
+
 			if attachmentCID.Valid {
 				record.AttachmentCID = attachmentCID.String
 			}

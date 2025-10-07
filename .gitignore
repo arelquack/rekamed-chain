@@ -39,8 +39,7 @@ coverage/
 
 # Env files
 .env
-.env.*
-!.env.example  # biar contoh env tetap bisa dikomit
+!.env.example
 
 # ==============================
 # Go / Backend
