@@ -47,29 +47,34 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Selamat Datang!</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <Button
-        title={isLoading ? 'Loading...' : 'Login'}
-        onPress={handleLogin}
-        disabled={isLoading}
-      />
-    </View>
+      <View style={styles.container}>
+        <Text style={styles.title}>Selamat Datang!</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <Button
+          title={isLoading ? 'Loading...' : 'Login'}
+          onPress={handleLogin}
+          disabled={isLoading}
+        />
+        <View style={{ marginVertical: 10 }} />
+        <Button
+          title="Belum punya akun? Daftar"
+          onPress={() => router.push('/register')}
+        />
+      </View>
   );
 }
 

@@ -51,17 +51,29 @@ export default function ConsentScreen() {
 
   const handleApprove = async (requestId: string) => {
     const token = await AsyncStorage.getItem('token');
-    if (!token) { /* ... */ return; }
+    const privateKey = await AsyncStorage.getItem('private_key');
+
+    if (!token || !privateKey) {
+      Alert.alert('Error', 'Kunci otentikasi tidak ditemukan. Silakan login ulang.');
+      return;
+    }
+
     try {
-        const response = await fetch(`${API_URL}/consent/grant/${requestId}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error('Gagal menyetujui permintaan.');
-        Alert.alert('Sukses', 'Permintaan berhasil disetujui!');
-        fetchRequests(); // Refresh data
+      // GANTI ENDPOINT DARI 'grant' MENJADI 'sign'
+      const response = await fetch(`${API_URL}/consent/sign/${requestId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        // Di aplikasi nyata, kita akan mengirim signature di sini
+        // body: JSON.stringify({ signature: "..." }) 
+      });
+
+      if (!response.ok) throw new Error('Gagal menandatangani persetujuan.');
+      
+      Alert.alert('Sukses', 'Permintaan berhasil disetujui secara digital (simulasi)!');
+      fetchRequests(); // Refresh data
+
     } catch (err) {
-        if (err instanceof Error) Alert.alert('Error', err.message);
+      if (err instanceof Error) Alert.alert('Error', err.message);
     }
   };
 
