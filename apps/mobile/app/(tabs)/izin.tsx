@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, ScrollView, SafeAreaView, TouchableOpacity, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, Stack } from 'expo-router';
 import { ethers } from 'ethers';
@@ -25,172 +25,172 @@ const dummyDoctorData: { [key: string]: { name: string; clinic: string } } = {
 };
 
 export default function IzinScreen() {
-  const [pendingRequests, setPendingRequests] = useState<ConsentRequest[]>([]);
-  const [activeRequests, setActiveRequests] = useState<ConsentRequest[]>([]);
-  const [inactiveRequests, setInactiveRequests] = useState<ConsentRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [userName, setUserName] = useState('Siti Nurhaliza'); // Dummy name
-  
-  // State untuk mengontrol dropdown/accordion
-  const [activeExpanded, setActiveExpanded] = useState(true);
-  const [inactiveExpanded, setInactiveExpanded] = useState(true);
-
-  const fetchRequests = async () => {
-      setIsLoading(true);
-      const token = await AsyncStorage.getItem('token');
-      if (!token) { setError('Token tidak ditemukan.'); setIsLoading(false); return; }
-      try {
-          const response = await fetch(`${API_URL}/consent/requests/me`, { headers: { 'Authorization': `Bearer ${token}` } });
-          if (!response.ok) throw new Error('Gagal mengambil data permintaan.');
-          const data: ConsentRequest[] = await response.json();
-          setPendingRequests(data.filter(req => req.status === 'pending'));
-          setActiveRequests(data.filter(req => req.status === 'granted'));
-          setInactiveRequests(data.filter(req => req.status === 'revoked' || req.status === 'denied'));
-      } catch (err) {
-          if (err instanceof Error) setError(err.message);
-      } finally {
-          setIsLoading(false);
-      }
-  };
-
-  useFocusEffect(React.useCallback(() => { fetchRequests(); }, []));
-
-  const handleApprove = async (requestId: string) => {
-    const token = await AsyncStorage.getItem('token');
-    const privateKeyHex = await AsyncStorage.getItem('private_key');
-
-    if (!token || !privateKeyHex) {
-      Alert.alert('Error', 'Kunci otentikasi atau kunci privat tidak ditemukan.');
-      return;
-    }
+    const [pendingRequests, setPendingRequests] = useState<ConsentRequest[]>([]);
+    const [activeRequests, setActiveRequests] = useState<ConsentRequest[]>([]);
+    const [inactiveRequests, setInactiveRequests] = useState<ConsentRequest[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [userName, setUserName] = useState('Arel'); // Dummy name
     
-    try {
-      const wallet = new ethers.Wallet(privateKeyHex);
-      const messageToSign = requestId;
-      const signature = await wallet.signMessage(messageToSign);
+    // State untuk mengontrol dropdown/accordion
+    const [activeExpanded, setActiveExpanded] = useState(true);
+    const [inactiveExpanded, setInactiveExpanded] = useState(true);
 
-      const response = await fetch(`${API_URL}/consent/sign/${requestId}`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ signature: signature })
-      });
+    const fetchRequests = async () => {
+        setIsLoading(true);
+        const token = await AsyncStorage.getItem('token');
+        if (!token) { setError('Token tidak ditemukan.'); setIsLoading(false); return; }
+        try {
+            const response = await fetch(`${API_URL}/consent/requests/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!response.ok) throw new Error('Gagal mengambil data permintaan.');
+            const data: ConsentRequest[] = await response.json();
+            setPendingRequests(data.filter(req => req.status === 'pending'));
+            setActiveRequests(data.filter(req => req.status === 'granted'));
+            setInactiveRequests(data.filter(req => req.status === 'revoked' || req.status === 'denied'));
+        } catch (err) {
+            if (err instanceof Error) setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server merespon dengan status ${response.status}: ${errorText}`);
-      }
-      
-      const data = await response.json();
-      Alert.alert('Sukses', data.message || 'Permintaan berhasil disetujui!');
-      fetchRequests();
+    useFocusEffect(React.useCallback(() => { fetchRequests(); }, []));
 
-    } catch (err) {
-      if (err instanceof Error) {
-        Alert.alert('DEBUG: Terjadi Error', err.message);
-      }
-    }
-  };
+    const handleApprove = async (requestId: string) => {
+        const token = await AsyncStorage.getItem('token');
+        const privateKeyHex = await AsyncStorage.getItem('private_key');
+
+        if (!token || !privateKeyHex) {
+        Alert.alert('Error', 'Kunci otentikasi atau kunci privat tidak ditemukan.');
+        return;
+        }
+        
+        try {
+        const wallet = new ethers.Wallet(privateKeyHex);
+        const messageToSign = requestId;
+        const signature = await wallet.signMessage(messageToSign);
+
+        const response = await fetch(`${API_URL}/consent/sign/${requestId}`, {
+            method: 'POST',
+            headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ signature: signature })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server merespon dengan status ${response.status}: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        Alert.alert('Sukses', data.message || 'Permintaan berhasil disetujui!');
+        fetchRequests();
+
+        } catch (err) {
+        if (err instanceof Error) {
+            Alert.alert('DEBUG: Terjadi Error', err.message);
+        }
+        }
+    };
 
 
-  const handleAction = (action: 'deny' | 'revoke') => {
-    Alert.alert('Fitur Segera Hadir', `Fungsionalitas untuk '${action}' akan diimplementasikan setelah endpoint backend siap.`);
-  };
+    const handleAction = (action: 'deny' | 'revoke') => {
+        Alert.alert('Fitur Segera Hadir', `Fungsionalitas untuk '${action}' akan diimplementasikan setelah endpoint backend siap.`);
+    };
 
-  if (isLoading) return <ActivityIndicator size="large" style={styles.centered} />;
-  if (error) return <Text style={[styles.centered, styles.errorText]}>{error}</Text>;
+    if (isLoading) return <ActivityIndicator size="large" style={styles.centered} />;
+    if (error) return <Text style={[styles.centered, styles.errorText]}>{error}</Text>;
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-            <Text style={styles.headerTitle}>Manajemen Izin Akses</Text>
-            <Text style={styles.headerSubtitle}>{userName}</Text>
-        </View>
-        {/* Bagian Permintaan Baru */}
-        {pendingRequests.map(req => (
-          <View key={req.id} style={styles.section}>
-            <View style={styles.pendingCard}>
-              <View style={styles.pendingHeader}>
-                <View style={styles.warningIcon}><Feather name="alert-triangle" size={16} color="#F59E0B" /></View>
-                <Text style={styles.pendingTitle}>Permintaan Akses Baru!</Text>
-              </View>
-              <Text style={styles.pendingInfo}>{dummyDoctorData['default'].name} - {dummyDoctorData['default'].clinic}</Text>
-              <Text style={styles.pendingDetails}>Meminta akses ke: Riwayat Diagnosis dan Hasil Laboratorium</Text>
-              <Text style={styles.pendingTime}>Diminta pada: {new Date(req.created_at).toLocaleString('id-ID')}</Text>
-              
-              <View style={styles.buttonGroup}>
-                <TouchableOpacity style={styles.primaryButton} onPress={() => handleApprove(req.id)}>
-                  <Feather name="check-circle" size={16} color="white" />
-                  <Text style={styles.primaryButtonText}>Setujui untuk 24 Jam</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => handleApprove(req.id)}>
-                   <Feather name="check-circle" size={16} color="#007AFF" />
-                   <Text style={styles.secondaryButtonText}>Setujui Selamanya</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.tertiaryButton} onPress={() => handleAction('deny')}>
-                  <Feather name="x-circle" size={16} color="#EF4444" />
-                  <Text style={styles.tertiaryButtonText}>Tolak</Text>
-                </TouchableOpacity>
-              </View>
+    return (
+        <SafeAreaView style={styles.safeArea}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ScrollView style={styles.container}>
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Manajemen Izin Akses</Text>
+                <Text style={styles.headerSubtitle}>{userName}</Text>
             </View>
-          </View>
-        ))}
-
-        {/* Bagian Izin Aktif (Collapsible) */}
-        <View style={styles.section}>
-            <TouchableOpacity style={styles.sectionHeader} onPress={() => setActiveExpanded(!activeExpanded)}>
-                <Text style={styles.sectionTitle}>Izin yang Aktif ({activeRequests.length})</Text>
-                <Feather name={activeExpanded ? "chevron-up" : "chevron-down"} size={24} color="black" />
-            </TouchableOpacity>
-            {activeExpanded && activeRequests.map((req, index) => (
-                <View key={req.id} style={styles.itemCard}>
-                    <View style={styles.itemHeader}>
-                        <Feather name="user" size={20} color="#666" />
-                        <View style={{flex: 1, marginLeft: 12}}>
-                            <Text style={styles.itemTitle}>{dummyDoctorData[index === 0 ? 'another' : 'default'].name}</Text>
-                            <Text style={styles.itemSubtitle}>{dummyDoctorData[index === 0 ? 'another' : 'default'].clinic}</Text>
-                        </View>
-                        <View style={styles.statusBadgeGreen}><Text style={styles.statusBadgeText}>Aktif</Text></View>
-                    </View>
-                    <Text style={styles.itemInfo}>Akses: Hasil Laboratorium • Berlaku hingga: Selamanya</Text>
-                    <View style={styles.cardFooter}>
-                        <TouchableOpacity style={styles.revokeButton} onPress={() => handleAction('revoke')}>
-                            <Text style={styles.revokeButtonText}>Cabut Izin</Text>
-                        </TouchableOpacity>
-                    </View>
+            {/* Bagian Permintaan Baru */}
+            {pendingRequests.map(req => (
+            <View key={req.id} style={styles.section}>
+                <View style={styles.pendingCard}>
+                <View style={styles.pendingHeader}>
+                    <View style={styles.warningIcon}><Feather name="alert-triangle" size={16} color="#F59E0B" /></View>
+                    <Text style={styles.pendingTitle}>Permintaan Akses Baru!</Text>
                 </View>
-            ))}
-        </View>
-
-        {/* Bagian Izin Tidak Aktif (Collapsible) */}
-        <View style={styles.section}>
-            <TouchableOpacity style={styles.sectionHeader} onPress={() => setInactiveExpanded(!inactiveExpanded)}>
-                <Text style={styles.sectionTitle}>Izin yang Dicabut/Kadaluarsa ({inactiveRequests.length})</Text>
-                <Feather name={inactiveExpanded ? "chevron-up" : "chevron-down"} size={24} color="black" />
-            </TouchableOpacity>
-            {inactiveExpanded && inactiveRequests.map((req, index) => (
-                <View key={req.id} style={[styles.itemCard, {opacity: 0.7}]}>
-                     <View style={styles.itemHeader}>
-                        <Feather name="user-x" size={20} color="#666" />
-                        <View style={{flex: 1, marginLeft: 12}}>
-                            <Text style={styles.itemTitle}>{dummyDoctorData[index === 0 ? 'revoked_1' : 'revoked_2'].name}</Text>
-                            <Text style={styles.itemSubtitle}>{dummyDoctorData[index === 0 ? 'revoked_1' : 'revoked_2'].clinic}</Text>
-                        </View>
-                        <View style={styles.statusBadgeRed}><Text style={styles.statusBadgeText}>Dicabut</Text></View>
-                    </View>
-                    <Text style={styles.itemInfo}>Akses: Riwayat Alergi • Dicabut oleh Pasien</Text>
+                <Text style={styles.pendingInfo}>{dummyDoctorData['default'].name} - {dummyDoctorData['default'].clinic}</Text>
+                <Text style={styles.pendingDetails}>Meminta akses ke: Riwayat Diagnosis dan Hasil Laboratorium</Text>
+                <Text style={styles.pendingTime}>Diminta pada: {new Date(req.created_at).toLocaleString('id-ID')}</Text>
+                
+                <View style={styles.buttonGroup}>
+                    <TouchableOpacity style={styles.primaryButton} onPress={() => handleApprove(req.id)}>
+                    <Feather name="check-circle" size={16} color="white" />
+                    <Text style={styles.primaryButtonText}>Setujui untuk 24 Jam</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => handleApprove(req.id)}>
+                    <Feather name="check-circle" size={16} color="#007AFF" />
+                    <Text style={styles.secondaryButtonText}>Setujui Selamanya</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.tertiaryButton} onPress={() => handleAction('deny')}>
+                    <Feather name="x-circle" size={16} color="#EF4444" />
+                    <Text style={styles.tertiaryButtonText}>Tolak</Text>
+                    </TouchableOpacity>
                 </View>
+                </View>
+            </View>
             ))}
-        </View>
 
-      </ScrollView>
-    </SafeAreaView>
-  );
+            {/* Bagian Izin Aktif (Collapsible) */}
+            <View style={styles.section}>
+                <TouchableOpacity style={styles.sectionHeader} onPress={() => setActiveExpanded(!activeExpanded)}>
+                    <Text style={styles.sectionTitle}>Izin yang Aktif ({activeRequests.length})</Text>
+                    <Feather name={activeExpanded ? "chevron-up" : "chevron-down"} size={24} color="black" />
+                </TouchableOpacity>
+                {activeExpanded && activeRequests.map((req, index) => (
+                    <View key={req.id} style={styles.itemCard}>
+                        <View style={styles.itemHeader}>
+                            <Feather name="user" size={20} color="#666" />
+                            <View style={{flex: 1, marginLeft: 12}}>
+                                <Text style={styles.itemTitle}>{dummyDoctorData[index === 0 ? 'another' : 'default'].name}</Text>
+                                <Text style={styles.itemSubtitle}>{dummyDoctorData[index === 0 ? 'another' : 'default'].clinic}</Text>
+                            </View>
+                            <View style={styles.statusBadgeGreen}><Text style={styles.statusBadgeText}>Aktif</Text></View>
+                        </View>
+                        <Text style={styles.itemInfo}>Akses: Hasil Laboratorium • Berlaku hingga: Selamanya</Text>
+                        <View style={styles.cardFooter}>
+                            <TouchableOpacity style={styles.revokeButton} onPress={() => handleAction('revoke')}>
+                                <Text style={styles.revokeButtonText}>Cabut Izin</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ))}
+            </View>
+
+            {/* Bagian Izin Tidak Aktif (Collapsible) */}
+            <View style={styles.section}>
+                <TouchableOpacity style={styles.sectionHeader} onPress={() => setInactiveExpanded(!inactiveExpanded)}>
+                    <Text style={styles.sectionTitle}>Izin yang Dicabut/Kadaluarsa ({inactiveRequests.length})</Text>
+                    <Feather name={inactiveExpanded ? "chevron-up" : "chevron-down"} size={24} color="black" />
+                </TouchableOpacity>
+                {inactiveExpanded && inactiveRequests.map((req, index) => (
+                    <View key={req.id} style={[styles.itemCard, {opacity: 0.7}]}>
+                        <View style={styles.itemHeader}>
+                            <Feather name="user-x" size={20} color="#666" />
+                            <View style={{flex: 1, marginLeft: 12}}>
+                                <Text style={styles.itemTitle}>{dummyDoctorData[index === 0 ? 'revoked_1' : 'revoked_2'].name}</Text>
+                                <Text style={styles.itemSubtitle}>{dummyDoctorData[index === 0 ? 'revoked_1' : 'revoked_2'].clinic}</Text>
+                            </View>
+                            <View style={styles.statusBadgeRed}><Text style={styles.statusBadgeText}>Dicabut</Text></View>
+                        </View>
+                        <Text style={styles.itemInfo}>Akses: Riwayat Alergi • Dicabut oleh Pasien</Text>
+                    </View>
+                ))}
+            </View>
+
+        </ScrollView>
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     errorText: { color: 'red' },
-    header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 20 },
+    header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 20, marginTop: (Platform.OS === 'android' ? 25 : 0) },
     headerTitle: { fontSize: 24, fontWeight: 'bold' },
     headerSubtitle: { fontSize: 16, color: 'gray', marginBottom: 10 },
     section: { marginBottom: 10, },

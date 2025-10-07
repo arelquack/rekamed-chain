@@ -30,96 +30,96 @@ const getRecordType = (diagnosis: string): { icon: keyof typeof Feather.glyphMap
 };
 
 export default function RiwayatScreen() {
-  const [records, setRecords] = useState<MedicalRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [userName, setUserName] = useState('Arel'); // Dummy name sesuai mockup
+    const [records, setRecords] = useState<MedicalRecord[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [userName, setUserName] = useState('Arel'); // Dummy name sesuai mockup
 
-  const fetchRecords = async () => {
-      setIsLoading(true);
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
-          setError('Token tidak ditemukan, silahkan login ulang.');
-          setIsLoading(false);
-          return;
-      }
-      try {
-          const response = await fetch(`${API_URL}/records`, {
-              headers: { 'Authorization': `Bearer ${token}` },
-          });
-          if (!response.ok) throw new Error('Gagal mengambil data riwayat medis.');
-          const data = await response.json();
-          setRecords(data || []);
-      } catch (err) {
-          if (err instanceof Error) setError(err.message);
-          else setError('Terjadi kesalahan tidak diketahui.');
-      } finally {
-          setIsLoading(false);
-      }
-  };
+    const fetchRecords = async () => {
+        setIsLoading(true);
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+            setError('Token tidak ditemukan, silahkan login ulang.');
+            setIsLoading(false);
+            return;
+        }
+        try {
+            const response = await fetch(`${API_URL}/records`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!response.ok) throw new Error('Gagal mengambil data riwayat medis.');
+            const data = await response.json();
+            setRecords(data || []);
+        } catch (err) {
+            if (err instanceof Error) setError(err.message);
+            else setError('Terjadi kesalahan tidak diketahui.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchRecords();
-    }, [])
-  );
+    useFocusEffect(
+        React.useCallback(() => {
+        fetchRecords();
+        }, [])
+    );
 
-  const renderItem = ({ item }: { item: MedicalRecord }) => {
-    const recordType = getRecordType(item.diagnosis);
+    const renderItem = ({ item }: { item: MedicalRecord }) => {
+        const recordType = getRecordType(item.diagnosis);
 
-    return (
-        <View style={styles.timelineItem}>
-            <View style={styles.timelineIconContainer}>
-                <View style={styles.timelineLine} />
-                <View style={styles.iconCircle}>
-                    <Feather name={recordType.icon} size={20} color="#007AFF" />
-                </View>
-            </View>
-            <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{item.diagnosis}</Text>
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{recordType.tag}</Text>
+        return (
+            <View style={styles.timelineItem}>
+                <View style={styles.timelineIconContainer}>
+                    <View style={styles.timelineLine} />
+                    <View style={styles.iconCircle}>
+                        <Feather name={recordType.icon} size={20} color="#007AFF" />
                     </View>
                 </View>
-                <Text style={styles.cardMeta}>{new Date(item.created_at).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})} • {new Date(item.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}</Text>
-                <Text style={styles.cardContent}>{item.notes}</Text>
+                <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <Text style={styles.cardTitle}>{item.diagnosis}</Text>
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{recordType.tag}</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.cardMeta}>{new Date(item.created_at).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})} • {new Date(item.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}</Text>
+                    <Text style={styles.cardContent}>{item.notes}</Text>
 
-                {item.attachment_cid && (
-                    <TouchableOpacity 
-                        style={styles.attachmentButton}
-                        onPress={() => Linking.openURL(`${API_URL}/ipfs/${item.attachment_cid}`)}
-                    >
-                        <Feather name="paperclip" size={14} color="#007AFF" />
-                        <Text style={styles.attachmentText}>Lihat Lampiran</Text>
-                    </TouchableOpacity>
-                )}
+                    {item.attachment_cid && (
+                        <TouchableOpacity 
+                            style={styles.attachmentButton}
+                            onPress={() => Linking.openURL(`${API_URL}/ipfs/${item.attachment_cid}`)}
+                        >
+                            <Feather name="paperclip" size={14} color="#007AFF" />
+                            <Text style={styles.attachmentText}>Lihat Lampiran</Text>
+                        </TouchableOpacity>
+                    )}
 
-                <Text style={styles.cardDoctor}>Dokter: {item.doctor_name}</Text>
+                    <Text style={styles.cardDoctor}>Dokter: {item.doctor_name}</Text>
+                </View>
             </View>
-        </View>
+        );
+    };
+
+    if (isLoading) return <ActivityIndicator size="large" style={styles.centered} />;
+    if (error) return <Text style={[styles.centered, styles.errorText]}>{error}</Text>;
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Riwayat Medis</Text>
+                <Text style={styles.headerSubtitle}>{userName}</Text>
+            </View>
+            <Text style={styles.pageDescription}>Kronologi Perawatan</Text>
+            <FlatList
+                data={records}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+                ListEmptyComponent={<Text style={styles.centered}>Belum ada riwayat medis.</Text>}
+                contentContainerStyle={{ paddingHorizontal: 20 }}
+            />
+        </SafeAreaView>
     );
-  };
-
-  if (isLoading) return <ActivityIndicator size="large" style={styles.centered} />;
-  if (error) return <Text style={[styles.centered, styles.errorText]}>{error}</Text>;
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-            <Text style={styles.headerTitle}>Riwayat Medis</Text>
-            <Text style={styles.headerSubtitle}>{userName}</Text>
-        </View>
-        <Text style={styles.pageDescription}>Kronologi Perawatan</Text>
-        <FlatList
-            data={records}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            ListEmptyComponent={<Text style={styles.centered}>Belum ada riwayat medis.</Text>}
-            contentContainerStyle={{ paddingHorizontal: 20 }}
-        />
-    </SafeAreaView>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: '#f0f4f8' },
     centered: { flex: 1, textAlign: 'center', marginTop: 50 },
     errorText: { color: 'red' },
-    header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 },
+    header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, marginTop: 20, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 10 },
     headerTitle: { fontSize: 28, fontWeight: 'bold' },
     headerSubtitle: { fontSize: 16, color: 'gray' },
     pageDescription: { paddingHorizontal: 20, marginBottom: 20, color: '#666' },
