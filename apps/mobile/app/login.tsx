@@ -33,7 +33,7 @@ export default function LoginScreen() {
       await AsyncStorage.setItem('token', data.token);
       await AsyncStorage.setItem('role', data.role);
       
-      router.replace('/dashboard');
+      router.replace('/(tabs)'); 
 
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
