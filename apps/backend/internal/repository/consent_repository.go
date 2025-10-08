@@ -41,7 +41,7 @@ func (r *postgresConsentRepository) GetRequestsByPatientID(ctx context.Context, 
 	}
 	defer rows.Close()
 
-	var requests []domain.ConsentRequest
+	requests := make([]domain.ConsentRequest, 0)
 	for rows.Next() {
 		var req domain.ConsentRequest
 		if err := rows.Scan(&req.ID, &req.DoctorID, &req.PatientID, &req.Status, &req.CreatedAt, &req.UpdatedAt); err != nil {

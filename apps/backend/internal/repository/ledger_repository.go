@@ -31,7 +31,7 @@ func (r *postgresLedgerRepository) GetLedgerBlocks(ctx context.Context) ([]domai
 	}
 	defer rows.Close()
 
-	var blocks []domain.LedgerBlock
+	blocks := make([]domain.LedgerBlock, 0)
 	for rows.Next() {
 		var block domain.LedgerBlock
 		if err := rows.Scan(&block.BlockID, &block.RecordID, &block.DataHash, &block.PreviousHash, &block.CreatedAt); err != nil {
