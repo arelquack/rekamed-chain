@@ -7,14 +7,15 @@ FROM golang:1.25-alpine AS builder
 # Set working directory di dalam container
 WORKDIR /app
 
-# Copy go.mod dan go.sum untuk men-download dependensi
-COPY apps/backend/go.mod apps/backend/go.sum ./
-RUN go mod download
-
-# Copy sisa source code
+# Copy semua source code backend terlebih dahulu
 COPY apps/backend/ ./
 
-# Build aplikasi. CGO_ENABLED=0 dan GOOS=linux penting untuk
+# Sekarang jalankan go mod tidy. Perintah ini akan melihat semua file .go,
+# menemukan semua import, dan membuat file go.sum yang lengkap.
+RUN go mod tidy
+
+# Build aplikasi.
+# CGO_ENABLED=0 dan GOOS=linux penting untuk
 # membuat static binary yang bisa jalan di image Alpine Linux.
 RUN CGO_ENABLED=0 GOOS=linux go build -o /rekamedchain-api ./cmd
 
