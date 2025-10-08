@@ -1,33 +1,59 @@
 # infra/Dockerfile.backend
 
 # --- Stage 1: Builder ---
-# Di stage ini kita build aplikasi Go menjadi binary.
+# Di stage ini kita build aplikasi Go dan menginstal migration tool.
 FROM golang:1.25-alpine AS builder
+
+# Install dependencies yang dibutuhkan untuk download migrate tool
+RUN apk add --no-cache git
 
 # Set working directory di dalam container
 WORKDIR /app
 
-# Copy semua source code backend terlebih dahulu
+# Download dan install migrate CLI
+# Ini akan menempatkan binary 'migrate' di /go/bin/migrate
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Copy file go.mod terlebih dahulu
+COPY apps/backend/go.mod ./
+
+# Copy seluruh source code backend.
+# Ini penting agar 'go mod tidy' bisa melihat semua import.
 COPY apps/backend/ ./
 
-# Sekarang jalankan go mod tidy. Perintah ini akan melihat semua file .go,
-# menemukan semua import, dan membuat file go.sum yang lengkap.
+# Jalankan go mod tidy. Ini akan membuat go.sum yang lengkap dan men-download semua dependency.
 RUN go mod tidy
 
 # Build aplikasi.
-# CGO_ENABLED=0 dan GOOS=linux penting untuk
-# membuat static binary yang bisa jalan di image Alpine Linux.
-RUN CGO_ENABLED=0 GOOS=linux go build -o /rekamedchain-api ./cmd
+# Build binary di dalam /app agar path-nya konsisten.
+# Menambahkan GOARCH=amd64 untuk memastikan arsitektur yang benar.
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/rekamedchain-api ./cmd
 
 # --- Stage 2: Final Image ---
 # Di stage ini kita pakai image super ringan dan hanya copy hasil build.
 FROM alpine:latest
 
-# Copy binary yang sudah di-build dari stage 'builder'
-COPY --from=builder /rekamedchain-api /rekamedchain-api
+WORKDIR /app
+
+# Copy folder migrasi dari direktori lokal Anda
+COPY apps/backend/migrations ./migrations
+
+# Copy binary migrate yang sudah di-build dari stage 'builder'
+COPY --from=builder /go/bin/migrate /usr/local/bin/
+
+# Copy binary aplikasi dari path yang sudah pasti di stage 'builder'
+COPY --from=builder /app/rekamedchain-api .
+
+# Pastikan binary memiliki izin untuk dieksekusi.
+RUN chmod +x /app/rekamedchain-api
 
 # Expose port yang akan digunakan oleh API kita
 EXPOSE 8080
 
-# Perintah untuk menjalankan aplikasi saat container start
-CMD [ "/rekamedchain-api" ]
+# Perintah untuk menjalankan aplikasi saat container start.
+# Perintah ini akan:
+# 1. Menjalankan migrasi database menggunakan file di folder ./migrations.
+# 2. Jika migrasi berhasil (exit code 0), maka akan menjalankan aplikasi utama.
+# Anda WAJIB menyediakan environment variable "DATABASE_URL".
+CMD ["/app/rekamedchain-api"]
+
