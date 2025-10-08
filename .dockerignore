@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # Git
 .git
 .gitignore
@@ -38,3 +39,24 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+=======
+# Abaikan folder dependensi
+node_modules
+**/node_modules
+
+# Abaikan build output Next.js
+.next
+
+# Abaikan file-file Git
+.git
+.gitignore
+
+# Abaikan file-file sistem operasi
+*.DS_Store
+Thumbs.db
+
+# Direktori build dari berbagai aplikasi
+**/build
+**/dist
+.next/
+>>>>>>> Stashed changes
