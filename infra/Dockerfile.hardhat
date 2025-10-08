@@ -1,16 +1,35 @@
+# infra/Dockerfile.hardhat (REVISED)
+
 FROM node:18-alpine
 
-# Install rsync
-RUN apk add --no-cache rsync
+# Install pnpm globally
+RUN npm install -g pnpm
 
+# Set the working directory
 WORKDIR /app
 
-COPY blockchain/package.json blockchain/pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install
+# --- This is the standard pnpm monorepo pattern ---
+# 1. Copy all manifests to leverage Docker cache.
+#    pnpm needs all of them to understand the workspace structure.
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json ./
+COPY blockchain/package.json ./blockchain/
+COPY apps/web/package.json ./apps/web/
+COPY apps/mobile/package.json ./apps/mobile/
 
-# Gunakan rsync untuk menghindari konflik
-COPY blockchain/ .
+# 2. Install dependencies ONLY for the 'blockchain' package and its own dependencies.
+#    The '--filter' flag is pnpm's superpower for monorepos.
+#    The '...' syntax includes dependencies OF the target package.
+RUN pnpm install --filter rekamedchain-blockchain...
+
+# 3. Copy the source code for the blockchain app AFTER installing dependencies.
+#    This improves Docker caching.
+COPY blockchain/ ./blockchain/
+
+# 4. Set the final working directory to the package itself.
+WORKDIR /app/blockchain
 
 EXPOSE 8545
 
+# This command will now be correctly run from /app/blockchain
 CMD [ "pnpm", "run", "node" ]

@@ -1,13 +1,40 @@
-# Abaikan folder dependensi
-node_modules
-
-# Abaikan build output Next.js
-.next
-
-# Abaikan file-file Git
+# Git
 .git
 .gitignore
 
-# Abaikan file-file sistem operasi
-*.DS_Store
+# OS
+.DS_Store
 Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Node / pnpm
+**/node_modules
+.pnpm-store/
+
+# Build outputs
+**/.next/
+**/out/
+**/dist/
+**/build/
+**/.vercel/
+**/.cache/
+**/coverage/
+
+# Hardhat
+**/artifacts
+**/typechain
+**/typechain-types
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.*
+!.env.example
