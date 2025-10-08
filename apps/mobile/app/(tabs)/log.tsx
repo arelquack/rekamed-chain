@@ -47,17 +47,25 @@ export default function LogAksesScreen() {
         setIsLoading(true);
         const token = await AsyncStorage.getItem('token');
         if (!token) { setError('Token tidak ditemukan.'); setIsLoading(false); return; }
+
         try {
-        const response = await fetch(`${API_URL}/log-access`, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!response.ok) throw new Error('Gagal mengambil data log akses.');
-        const data: AccessLog[] = await response.json();
-        setLogSections(groupLogsByDate(data || []));
+            const response = await fetch(`${API_URL}/log-access`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+            });
+
+            let data = [];
+            if (response.ok && response.status !== 204) {
+            const json = await response.json();
+            data = Array.isArray(json) ? json : [];
+            }
+
+            setLogSections(groupLogsByDate(data));
         } catch (err) {
-        if (err instanceof Error) setError(err.message);
+            if (err instanceof Error) setError(err.message);
         } finally {
-        setIsLoading(false);
+            setIsLoading(false);
         }
-    };
+        };
 
     useFocusEffect(React.useCallback(() => { fetchLogs(); }, []));
 
