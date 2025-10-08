@@ -1,7 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity } from 'react-native';
 import LottieView from 'lottie-react-native';
-import { Feather } from '@expo/vector-icons';
 
 interface SuccessModalProps {
   visible: boolean;
@@ -14,8 +13,9 @@ export default function SuccessModal({ visible, onClose, title, message }: Succe
   const animationRef = useRef<LottieView>(null);
 
   useEffect(() => {
+    // Setiap kali modal terlihat (dari false ke true), mainkan animasi dari awal.
     if (visible) {
-      animationRef.current?.play();
+      animationRef.current?.play(0); // 'play(0)' untuk memastikan animasi reset
     }
   }, [visible]);
 
@@ -30,8 +30,11 @@ export default function SuccessModal({ visible, onClose, title, message }: Succe
         <View style={styles.modalView}>
           <LottieView
             ref={animationRef}
+            // PERBAIKAN 1: Gunakan path relatif
             source={require('../assets/lottie/success.json')}
             style={styles.lottie}
+            // PERBAIKAN 2: Jangan autoPlay dan jangan loop
+            autoPlay={false}
             loop={false}
           />
           <Text style={styles.modalTitle}>{title}</Text>
@@ -50,7 +53,11 @@ export default function SuccessModal({ visible, onClose, title, message }: Succe
 
 const styles = StyleSheet.create({
   centeredView: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -62,10 +69,7 @@ const styles = StyleSheet.create({
     padding: 35,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5
