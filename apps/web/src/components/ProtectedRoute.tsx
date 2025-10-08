@@ -4,21 +4,22 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // Jika proses pengecekan sesi sudah selesai...
+    // Jika pengecekan sesi dari AuthContext sudah selesai...
     if (!isLoading) {
-      // ...dan ternyata tidak ada token (user belum login), usir ke halaman login.
+      // ...dan ternyata tidak ada token (user belum login), arahkan ke halaman login.
       if (!token) {
         router.replace('/login');
       }
     }
   }, [isLoading, token, router]);
 
-  // Jika sesi masih dicek atau user belum login, tampilkan layar loading
+  // Selama sesi masih dicek atau jika tidak ada token, tampilkan layar loading.
+  // Ini mencegah konten terproteksi "berkedip" sebelum redirect.
   if (isLoading || !token) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -27,6 +28,6 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  // Jika user sudah login, izinkan masuk dan tampilkan halamannya
+  // Jika user sudah login, tampilkan halaman yang diminta.
   return <>{children}</>;
 }

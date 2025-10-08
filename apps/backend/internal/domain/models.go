@@ -49,6 +49,7 @@ type LoginPayload struct {
 // Claims defines the JWT claims structure.
 type Claims struct {
 	UserID string `json:"user_id"`
+	Name   string `json:"name"`
 	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
