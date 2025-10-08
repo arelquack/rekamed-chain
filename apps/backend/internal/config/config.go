@@ -39,7 +39,7 @@ func Load() (*Config, error) {
 
 	encryptionKey := []byte(os.Getenv("ENCRYPTION_KEY"))
 	if len(encryptionKey) == 0 {
-		encryptionKey = []byte("12345678901234567890123456789012") // Contoh kunci 32-byte
+		encryptionKey = []byte("ini_adalah_kunci_rahasia_32_byte") // Contoh kunci 32-byte
 	}
 	if len(encryptionKey) != 32 {
 		return nil, fmt.Errorf("ENCRYPTION_KEY must be 32 bytes long")

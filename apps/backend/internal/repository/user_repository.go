@@ -71,7 +71,7 @@ func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string) 
 	}
 	defer rows.Close()
 
-	var users []domain.PublicUser
+	users := make([]domain.PublicUser, 0)
 	for rows.Next() {
 		var user domain.PublicUser
 		if err := rows.Scan(&user.ID, &user.Name, &user.Email); err != nil {

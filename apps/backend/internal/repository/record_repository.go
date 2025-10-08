@@ -45,7 +45,7 @@ func (r *postgresRecordRepository) GetRecordsByPatientID(ctx context.Context, pa
 	}
 	defer rows.Close()
 
-	var records []domain.MedicalRecord
+	records := make([]domain.MedicalRecord, 0)
 	for rows.Next() {
 		var record domain.MedicalRecord
 		var attachmentCID sql.NullString
