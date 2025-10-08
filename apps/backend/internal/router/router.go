@@ -17,7 +17,7 @@ import (
 	"github.com/trifur/rekamedchain/backend/internal/repository"
 )
 
-func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte) http.Handler {
+func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, encryptionKey []byte) http.Handler {
 	// --- Inisialisasi ---
 	httpClient := &http.Client{Timeout: 60 * time.Second}
 	ipfsClient, err := ipfshttp.NewURLApiWithClient(ipfsURL, httpClient)
@@ -32,7 +32,7 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte) 
 	ledgerRepo := repository.NewPostgresLedgerRepository(db)
 
 	authHandler := handler.NewAuthHandler(userRepo, jwtKey)
-	recordHandler := handler.NewRecordHandler(recordRepo, userRepo)
+	recordHandler := handler.NewRecordHandler(recordRepo, userRepo, encryptionKey)
 	ipfsHandler := handler.NewIpfsHandler(ipfsClient)
 	consentHandler := handler.NewConsentHandler(consentRepo)
 	ledgerHandler := handler.NewLedgerHandler(ledgerRepo)

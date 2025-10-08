@@ -27,7 +27,7 @@ func main() {
 
 	// 3. Inisialisasi Router
 	// Router akan menangani inisialisasi semua handler dan repository
-	appRouter := router.NewRouter(db, cfg.IPFS_API, cfg.IPFS_Gateway, cfg.JWTKey)
+	appRouter := router.NewRouter(db, cfg.IPFS_API, cfg.IPFS_Gateway, cfg.JWTKey, cfg.EncryptionKey)
 
 	// 4. Jalankan HTTP Server
 	log.Printf("Backend server is starting on %s", cfg.ServerAddress)

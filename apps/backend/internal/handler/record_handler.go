@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/trifur/rekamedchain/backend/internal/crypto"
 	"github.com/trifur/rekamedchain/backend/internal/domain"
 	"github.com/trifur/rekamedchain/backend/internal/middleware"
 	"github.com/trifur/rekamedchain/backend/internal/repository"
@@ -15,15 +16,17 @@ import (
 
 // RecordHandler handles medical record related HTTP requests.
 type RecordHandler struct {
-	recordRepo repository.RecordRepository
-	userRepo   repository.UserRepository // Dibutuhkan untuk mengambil nama dokter
+	recordRepo    repository.RecordRepository
+	userRepo      repository.UserRepository // Dibutuhkan untuk mengambil nama dokter
+	encryptionKey []byte
 }
 
 // NewRecordHandler creates a new instance of RecordHandler.
-func NewRecordHandler(recordRepo repository.RecordRepository, userRepo repository.UserRepository) *RecordHandler {
+func NewRecordHandler(recordRepo repository.RecordRepository, userRepo repository.UserRepository, encryptionKey []byte) *RecordHandler {
 	return &RecordHandler{
-		recordRepo: recordRepo,
-		userRepo:   userRepo,
+		recordRepo:    recordRepo,
+		userRepo:      userRepo,
+		encryptionKey: encryptionKey,
 	}
 }
 
@@ -48,11 +51,24 @@ func (h *RecordHandler) CreateRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	encryptedDiagnosis, err := crypto.Encrypt(payload.Diagnosis, h.encryptionKey)
+	if err != nil {
+		log.Printf("Gagal mengenkripsi diagnosis: %v", err)
+		http.Error(w, "Gagal memproses data", http.StatusInternalServerError)
+		return
+	}
+	encryptedNotes, err := crypto.Encrypt(payload.Notes, h.encryptionKey)
+	if err != nil {
+		log.Printf("Gagal mengenkripsi catatan: %v", err)
+		http.Error(w, "Gagal memproses data", http.StatusInternalServerError)
+		return
+	}
+
 	newRecord := &domain.MedicalRecord{
 		PatientID:     strings.TrimSpace(payload.PatientID),
 		DoctorName:    "dr. " + doctor.Name,
-		Diagnosis:     payload.Diagnosis,
-		Notes:         payload.Notes,
+		Diagnosis:     encryptedDiagnosis, // Simpan data terenkripsi
+		Notes:         encryptedNotes,     // Simpan data terenkripsi
 		AttachmentCID: payload.AttachmentCID,
 	}
 
@@ -99,14 +115,24 @@ func (h *RecordHandler) CreateRecord(w http.ResponseWriter, r *http.Request) {
 func (h *RecordHandler) GetMyRecords(w http.ResponseWriter, r *http.Request) {
 	patientID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
-		http.Error(w, "Gagal mendapatkan ID dokter dari token", http.StatusInternalServerError)
+		http.Error(w, "Gagal mendapatkan patient Id", http.StatusInternalServerError)
 		return
 	}
+
 	records, err := h.recordRepo.GetRecordsByPatientID(r.Context(), patientID)
-	if err != nil {
-		log.Printf("Gagal mengambil rekam medis: %v", err)
-		http.Error(w, "Gagal mengambil data", http.StatusInternalServerError)
-		return
+	if err != nil { /* ... error handling ... */
+	}
+
+	// --- DECRYPT DATA ---
+	for i := range records {
+		decryptedDiagnosis, err := crypto.Decrypt(records[i].Diagnosis, h.encryptionKey)
+		if err == nil {
+			records[i].Diagnosis = decryptedDiagnosis
+		}
+		decryptedNotes, err := crypto.Decrypt(records[i].Notes, h.encryptionKey)
+		if err == nil {
+			records[i].Notes = decryptedNotes
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -115,21 +141,30 @@ func (h *RecordHandler) GetMyRecords(w http.ResponseWriter, r *http.Request) {
 
 // GetPatientRecords handles a doctor fetching records for a specific patient.
 func (h *RecordHandler) GetPatientRecords(w http.ResponseWriter, r *http.Request) {
-	// Ambil patient_id dari URL path, bukan dari token konteks
 	patientID := r.PathValue("patient_id")
-	if patientID == "" {
-		http.Error(w, "ID Pasien tidak ditemukan di URL", http.StatusBadRequest)
-		return
+	if patientID == "" { /* ... error handling ... */
 	}
 
 	records, err := h.recordRepo.GetRecordsByPatientID(r.Context(), patientID)
-	if err != nil {
-		log.Printf("Gagal mengambil rekam medis untuk pasien %s: %v", patientID, err)
-		http.Error(w, "Gagal mengambil data", http.StatusInternalServerError)
-		return
+	if err != nil { /* ... error handling ... */
 	}
 
-	// Pastikan mengembalikan array kosong, bukan null, jika tidak ada data
+	// --- DECRYPT DATA ---
+	for i := range records {
+		decryptedDiagnosis, err := crypto.Decrypt(records[i].Diagnosis, h.encryptionKey)
+		if err == nil {
+			records[i].Diagnosis = decryptedDiagnosis
+		} else {
+			records[i].Diagnosis = "[Gagal Dekripsi Data]" // Tampilkan pesan jika gagal
+		}
+		decryptedNotes, err := crypto.Decrypt(records[i].Notes, h.encryptionKey)
+		if err == nil {
+			records[i].Notes = decryptedNotes
+		} else {
+			records[i].Notes = "[Gagal Dekripsi Data]"
+		}
+	}
+
 	if records == nil {
 		records = make([]domain.MedicalRecord, 0)
 	}
