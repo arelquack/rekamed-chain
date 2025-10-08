@@ -11,8 +11,10 @@ services:
     volumes:
       - ./apps/backend:/app
     depends_on:
-      - db
-      - ipfs
+      db:
+        condition: service_healthy # Tunggu sampai DB 'healthy'
+      ipfs:
+        condition: service_started # Cukup tunggu ipfs dimulai
     env_file:
       - .env
     networks:
@@ -43,7 +45,12 @@ services:
       - .env
     networks:
       - rekamed_net
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
   ipfs:
     container_name: rekamedchain_ipfs
     image: ipfs/go-ipfs:latest
