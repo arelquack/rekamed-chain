@@ -16,12 +16,17 @@ services:
     depends_on:
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       db:
         condition: service_healthy # Tunggu sampai DB 'healthy'
       ipfs:
         condition: service_started # Cukup tunggu ipfs dimulai
     env_file:
       - .env
+=======
+      - db
+      - ipfs
+>>>>>>> Stashed changes
 =======
       - db
       - ipfs
