@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -10,6 +11,7 @@ type Config struct {
 	IPFS_API      string
 	IPFS_Gateway  string
 	JWTKey        []byte
+	EncryptionKey []byte
 	ServerAddress string
 }
 
@@ -35,6 +37,14 @@ func Load() (*Config, error) {
 		jwtKey = []byte("kunci_rahasia_super_aman_jangan_ditiru")
 	}
 
+	encryptionKey := []byte(os.Getenv("ENCRYPTION_KEY"))
+	if len(encryptionKey) == 0 {
+		encryptionKey = []byte("12345678901234567890123456789012") // Contoh kunci 32-byte
+	}
+	if len(encryptionKey) != 32 {
+		return nil, fmt.Errorf("ENCRYPTION_KEY must be 32 bytes long")
+	}
+
 	serverAddress := os.Getenv("SERVER_ADDRESS")
 	if serverAddress == "" {
 		serverAddress = ":8080"
@@ -45,6 +55,7 @@ func Load() (*Config, error) {
 		IPFS_API:      ipfsAPI,
 		IPFS_Gateway:  ipfsGateway,
 		JWTKey:        jwtKey,
+		EncryptionKey: encryptionKey,
 		ServerAddress: serverAddress,
 	}, nil
 }
