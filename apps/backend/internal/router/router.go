@@ -17,7 +17,7 @@ import (
 	"github.com/trifur/rekamedchain/backend/internal/repository"
 )
 
-func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, encryptionKey []byte) http.Handler {
+func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, encriptionKey []byte) http.Handler {
 	// --- Inisialisasi ---
 	httpClient := &http.Client{Timeout: 60 * time.Second}
 	ipfsClient, err := ipfshttp.NewURLApiWithClient(ipfsURL, httpClient)
@@ -30,13 +30,15 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, 
 	recordRepo := repository.NewPostgresRecordRepository(db)
 	consentRepo := repository.NewPostgresConsentRepository(db)
 	ledgerRepo := repository.NewPostgresLedgerRepository(db)
+	logRepo := repository.NewPostgresLogRepository(db)
 
 	authHandler := handler.NewAuthHandler(userRepo, jwtKey)
-	recordHandler := handler.NewRecordHandler(recordRepo, userRepo, encryptionKey)
+	recordHandler := handler.NewRecordHandler(recordRepo, userRepo, nil) // Asumsi encryption key ditangani nanti
 	ipfsHandler := handler.NewIpfsHandler(ipfsClient)
 	consentHandler := handler.NewConsentHandler(consentRepo)
 	ledgerHandler := handler.NewLedgerHandler(ledgerRepo)
 	userHandler := handler.NewUserHandler(userRepo)
+	logHandler := handler.NewLogHandler(logRepo)
 
 	// --- Routing Menggunakan SATU Mux Utama ---
 	apiMux := http.NewServeMux()
@@ -66,11 +68,14 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, 
 	apiMux.Handle("POST /upload", doctorOnly(http.HandlerFunc(ipfsHandler.UploadFile)))
 	apiMux.Handle("POST /consent/request", doctorOnly(http.HandlerFunc(consentHandler.HandleRequest)))
 	apiMux.Handle("GET /ledger", doctorOnly(http.HandlerFunc(ledgerHandler.HandleGetLedger)))
-	apiMux.Handle("GET /users/search", doctorOnly(http.HandlerFunc(userHandler.HandleSearchUsers))) // <-- SEKARANG DIDAFTARKAN LANGSUNG
+	apiMux.Handle("GET /users/search", doctorOnly(http.HandlerFunc(userHandler.HandleSearchUsers)))
 
 	// Rute dokter dengan middleware tambahan (consent)
 	getPatientRecordsHandler := middleware.ConsentMiddleware(db, http.HandlerFunc(recordHandler.GetPatientRecords))
 	apiMux.Handle("GET /records/patient/{patient_id}", doctorOnly(getPatientRecordsHandler))
+
+	getAuditLogHandler := middleware.ConsentMiddleware(db, http.HandlerFunc(logHandler.HandleGetAuditLog))
+	apiMux.Handle("GET /audit-log/{patient_id}", doctorOnly(getAuditLogHandler))
 
 	// --- Final Handler Setup ---
 	parsedGatewayURL, _ := url.Parse(ipfsGatewayURL)
