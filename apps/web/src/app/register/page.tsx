@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRouter } from 'next/navigation';
 
 // --- KUMPULAN IKON ---
 
@@ -78,9 +79,11 @@ export default function RegisterPage() {
     const [nip, setNip] = useState('');
     const [phone, setPhone] = useState('');
     const [specialization, setSpecialization] = useState('');
+    const [role, setRole] = useState('doctor');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
+    const router = useRouter(); 
 
     // State untuk menampilkan pesan sukses atau error
     const [message, setMessage] = useState('');
@@ -122,7 +125,8 @@ export default function RegisterPage() {
                     nip,
                     phone,
                     specialization,
-                    password 
+                    password,
+                    role
                 }),
             });
 
@@ -133,8 +137,13 @@ export default function RegisterPage() {
 
             const data = await response.json();
 
-            // Jika registrasi berhasil
-            setMessage(`Registrasi berhasil! User ID: ${data.userID}`);
+            setMessage("Pendaftaran berhasil! Anda akan dialihkan ke halaman login.");
+      
+            // Alihkan ke halaman login setelah 2 detik
+            setTimeout(() => {
+                router.push("/login");
+            }, 2000);
+
             // Kosongkan form
             setName('');
             setEmail('');
