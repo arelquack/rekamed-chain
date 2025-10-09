@@ -41,8 +41,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Logika untuk menentukan role (pasien atau dokter)
 	role := payload.Role
-	if payload.Role != "patient" {
+	if role != "patient" {
 		role = "doctor"
 	}
 
@@ -68,7 +69,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	userID, err := h.userRepo.CreateUser(r.Context(), newUser)
 	if err != nil {
 		log.Printf("Gagal menyimpan user: %v", err)
-		http.Error(w, "Gagal menyimpan user, mungkin email sudah terdaftar?", http.StatusInternalServerError)
+		http.Error(w, "Gagal menyimpan user, mungkin email atau NIP sudah terdaftar?", http.StatusInternalServerError)
 		return
 	}
 
@@ -81,54 +82,87 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Login handles the user login process.
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-    var payload domain.LoginPayload
-    if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-        http.Error(w, "Request body tidak valid", http.StatusBadRequest)
-        return
-    }
+// DoctorLogin handles the login process specifically for doctors.
+func (h *AuthHandler) DoctorLogin(w http.ResponseWriter, r *http.Request) {
+	var payload domain.LoginPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
 
-    user, err := h.userRepo.GetUserByEmail(r.Context(), payload.Email)
-    if err != nil {
-        http.Error(w, "Email belum terdaftar atau password salah", http.StatusUnauthorized)
-        return
-    }
+	user, err := h.userRepo.GetUserByEmail(r.Context(), payload.Email)
+	if err != nil {
+		http.Error(w, "Email atau password salah", http.StatusUnauthorized)
+		return
+	}
 
-    // --- TAMBAHKAN BLOK KODE INI ---
-    // Periksa apakah peran (role) pengguna adalah 'doctor'
-    if user.Role != "doctor" {
-        http.Error(w, "Akses ditolak. Hanya dokter yang dapat login.", http.StatusForbidden)
-        return
-    }
-    // --- AKHIR BLOK KODE ---
+	// VALIDASI 1: Pastikan role adalah 'doctor'
+	if user.Role != "doctor" {
+		http.Error(w, "Akses ditolak. Akun ini bukan akun dokter.", http.StatusForbidden)
+		return
+	}
 
-    err = bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(payload.Password))
-    if err != nil {
-        http.Error(w, "Email atau password salah", http.StatusUnauthorized)
-        return
-    }
+	err = bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(payload.Password))
+	if err != nil {
+		http.Error(w, "Email atau password salah", http.StatusUnauthorized)
+		return
+	}
 
-    expirationTime := time.Now().Add(24 * time.Hour)
-    claims := &domain.Claims{
-        UserID: user.ID,
-		Name:   user.Name,
-        Role:   user.Role,
-        RegisteredClaims: jwt.RegisteredClaims{
-            ExpiresAt: jwt.NewNumericDate(expirationTime),
-        },
-    }
+	// Lanjutkan membuat token jika semua validasi lolos
+	h.createAndSendToken(w, user)
+}
 
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    tokenString, err := token.SignedString(h.jwtKey)
-    if err != nil {
-        http.Error(w, "Gagal membuat token", http.StatusInternalServerError)
-        return
-    }
+// PatientLogin handles the login process specifically for patients.
+func (h *AuthHandler) PatientLogin(w http.ResponseWriter, r *http.Request) {
+	var payload domain.LoginPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+		return
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string{
-        "token": tokenString,
-        "role":  user.Role,
-    })
+	user, err := h.userRepo.GetUserByEmail(r.Context(), payload.Email)
+	if err != nil {
+		http.Error(w, "Email atau password salah", http.StatusUnauthorized)
+		return
+	}
+
+	// VALIDASI 2: Pastikan role adalah 'patient'
+	if user.Role != "patient" {
+		http.Error(w, "Akses ditolak. Akun ini bukan akun pasien.", http.StatusForbidden)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(payload.Password))
+	if err != nil {
+		http.Error(w, "Email atau password salah", http.StatusUnauthorized)
+		return
+	}
+
+	// Lanjutkan membuat token jika semua validasi lolos
+	h.createAndSendToken(w, user)
+}
+
+// Helper function to avoid code duplication for creating and sending tokens.
+func (h *AuthHandler) createAndSendToken(w http.ResponseWriter, user *domain.User) {
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &domain.Claims{
+		UserID: user.ID,
+		Role:   user.Role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(h.jwtKey)
+	if err != nil {
+		http.Error(w, "Gagal membuat token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"token": tokenString,
+		"role":  user.Role,
+	})
 }
