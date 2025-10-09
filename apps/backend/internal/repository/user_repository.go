@@ -47,17 +47,6 @@ func (r *postgresUserRepository) GetUserByEmail(ctx context.Context, email strin
 	return &user, nil
 }
 
-// GetUserByID retrieves a user by their ID.
-func (r *postgresUserRepository) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
-	var user domain.User
-	sql := `SELECT id, name, email, role FROM users WHERE id = $1`
-	err := r.db.QueryRow(ctx, sql, id).Scan(&user.ID, &user.Name, &user.Email, &user.Role)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
 // SearchUsers finds users by name or email.
 func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string) ([]domain.PublicUser, error) {
 	sql := `
@@ -80,4 +69,17 @@ func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string) 
 		users = append(users, user)
 	}
 	return users, nil
+}
+
+// GetUserByID retrieves a user by their ID.
+func (r *postgresUserRepository) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
+	var user domain.User
+	// Perbarui query untuk mengambil kolom baru
+	sql := `SELECT id, name, email, role, nip, phone, specialization FROM users WHERE id = $1`
+	// Perbarui Scan untuk membaca kolom baru
+	err := r.db.QueryRow(ctx, sql, id).Scan(&user.ID, &user.Name, &user.Email, &user.Role, &user.NIP, &user.Phone, &user.Specialization)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }

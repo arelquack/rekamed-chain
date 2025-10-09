@@ -95,3 +95,55 @@ func (h *ConsentHandler) HandleGrant(w http.ResponseWriter, r *http.Request) {
 		"message": "Permintaan berhasil disetujui",
 	})
 }
+
+// HandleDeny handles a patient denying a consent request.
+func (h *ConsentHandler) HandleDeny(w http.ResponseWriter, r *http.Request) {
+	patientID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "Gagal mendapatkan ID pasien dari token", http.StatusInternalServerError)
+		return
+	}
+	requestID := r.PathValue("request_id")
+
+	if requestID == "" {
+		http.Error(w, "Request ID dibutuhkan", http.StatusBadRequest)
+		return
+	}
+
+	rowsAffected, err := h.consentRepo.DenyConsent(r.Context(), requestID, patientID)
+	if err != nil || rowsAffected == 0 {
+		http.Error(w, "Gagal menolak permintaan atau permintaan tidak ditemukan/sudah diproses", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Permintaan berhasil ditolak",
+	})
+}
+
+// HandleRevoke handles a patient revoking a previously granted consent.
+func (h *ConsentHandler) HandleRevoke(w http.ResponseWriter, r *http.Request) {
+	patientID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "Gagal mendapatkan ID pasien dari token", http.StatusInternalServerError)
+		return
+	}
+	requestID := r.PathValue("request_id")
+
+	if requestID == "" {
+		http.Error(w, "Request ID dibutuhkan", http.StatusBadRequest)
+		return
+	}
+
+	rowsAffected, err := h.consentRepo.RevokeConsent(r.Context(), requestID, patientID)
+	if err != nil || rowsAffected == 0 {
+		http.Error(w, "Gagal mencabut izin atau izin tidak ditemukan/bukan 'granted'", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Izin akses berhasil dicabut",
+	})
+}

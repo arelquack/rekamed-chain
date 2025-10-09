@@ -12,6 +12,8 @@ type ConsentRepository interface {
 	CreateRequest(ctx context.Context, doctorID, patientID string) (string, error)
 	GetRequestsByPatientID(ctx context.Context, patientID string) ([]domain.ConsentRequest, error)
 	GrantConsent(ctx context.Context, requestID, patientID string) (int64, error)
+	DenyConsent(ctx context.Context, requestID, patientID string) (int64, error)
+	RevokeConsent(ctx context.Context, requestID, patientID string) (int64, error)
 }
 
 // postgresConsentRepository is the PostgreSQL implementation of ConsentRepository.
@@ -55,6 +57,28 @@ func (r *postgresConsentRepository) GetRequestsByPatientID(ctx context.Context, 
 // GrantConsent updates the status of a consent request to 'granted'.
 func (r *postgresConsentRepository) GrantConsent(ctx context.Context, requestID, patientID string) (int64, error) {
 	sql := `UPDATE consent_requests SET status = 'granted', updated_at = NOW() WHERE id = $1 AND patient_id = $2`
+	res, err := r.db.Exec(ctx, sql, requestID, patientID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected(), nil
+}
+
+// DenyConsent updates the status of a consent request to 'denied'.
+// Can only be done by the patient and only if the status is 'pending'.
+func (r *postgresConsentRepository) DenyConsent(ctx context.Context, requestID, patientID string) (int64, error) {
+	sql := `UPDATE consent_requests SET status = 'denied', updated_at = NOW() WHERE id = $1 AND patient_id = $2 AND status = 'pending'`
+	res, err := r.db.Exec(ctx, sql, requestID, patientID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected(), nil
+}
+
+// RevokeConsent updates the status of a consent request to 'revoked'.
+// Can only be done by the patient and only if the status was 'granted'.
+func (r *postgresConsentRepository) RevokeConsent(ctx context.Context, requestID, patientID string) (int64, error) {
+	sql := `UPDATE consent_requests SET status = 'revoked', updated_at = NOW() WHERE id = $1 AND patient_id = $2 AND status = 'granted'`
 	res, err := r.db.Exec(ctx, sql, requestID, patientID)
 	if err != nil {
 		return 0, err
