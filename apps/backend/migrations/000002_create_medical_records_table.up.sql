@@ -1,4 +1,4 @@
-CREATE TABLE medical_records (
+CREATE TABLE IF NOT EXISTS medical_records (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     patient_id UUID NOT NULL,
     doctor_name VARCHAR(255) NOT NULL,
