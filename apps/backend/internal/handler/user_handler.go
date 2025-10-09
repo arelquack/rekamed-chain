@@ -22,8 +22,8 @@ func NewUserHandler(userRepo repository.UserRepository) *UserHandler {
 // HandleSearchUsers handles searching for patients by name or email.
 func (h *UserHandler) HandleSearchUsers(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	if len(query) < 3 {
-		http.Error(w, "Query pencarian minimal 3 karakter", http.StatusBadRequest)
+	if len(query) < 1 {
+		http.Error(w, "Query pencarian minimal 1 karakter", http.StatusBadRequest)
 		return
 	}
 

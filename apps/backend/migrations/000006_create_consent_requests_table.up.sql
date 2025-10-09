@@ -1,4 +1,4 @@
-CREATE TABLE consent_requests (
+CREATE TABLE IF NOT EXISTS consent_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     doctor_id UUID NOT NULL,
     patient_id UUID NOT NULL,

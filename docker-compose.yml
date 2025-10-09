@@ -18,8 +18,6 @@ services:
         condition: service_healthy
       ipfs:
         condition: service_started
-    env_file:
-      - .env
     networks:
       - rekamed_net
     command: sh -c "rm -f go.sum && go mod tidy && migrate -path ./migrations -database \"$$DB_SOURCE\" up && go run ./cmd"

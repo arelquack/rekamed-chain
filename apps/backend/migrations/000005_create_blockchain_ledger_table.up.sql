@@ -1,4 +1,4 @@
-CREATE TABLE blockchain_ledger (
+CREATE TABLE IF NOT EXISTS blockchain_ledger (
     block_id SERIAL PRIMARY KEY,
     record_id UUID NOT NULL,
     data_hash VARCHAR(64) NOT NULL,
