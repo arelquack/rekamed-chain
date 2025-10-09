@@ -29,6 +29,18 @@ type PublicUser struct {
 	Email string `json:"email"`
 }
 
+// UserProfile defines the detailed user data returned for the logged-in user.
+type UserProfile struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Email          string `json:"email"`
+	Role           string `json:"role"`
+	FormattedID    string `json:"formatted_id"`
+	NIP            string `json:"nip,omitempty"`
+	Phone          string `json:"phone,omitempty"`
+	Specialization string `json:"specialization,omitempty"`
+}
+
 // RegisterPayload defiens the structures for the registration request.
 type RegisterPayload struct {
 	Name           string `json:"name"`

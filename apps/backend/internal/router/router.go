@@ -54,9 +54,12 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, 
 	apiMux.HandleFunc("POST /patient/login", authHandler.PatientLogin)
 
 	// == Patient Routes (Authenticated) ==
+	apiMux.Handle("GET /users/me", middleware.AuthMiddleware(http.HandlerFunc(userHandler.HandleGetMyProfile), jwtKey))
 	apiMux.Handle("GET /records", middleware.AuthMiddleware(http.HandlerFunc(recordHandler.GetMyRecords), jwtKey))
 	apiMux.Handle("GET /consent/requests/me", middleware.AuthMiddleware(http.HandlerFunc(consentHandler.HandleGetMyRequests), jwtKey))
 	apiMux.Handle("POST /consent/sign/{request_id}", middleware.AuthMiddleware(http.HandlerFunc(consentHandler.HandleGrant), jwtKey))
+	apiMux.Handle("POST /consent/deny/{request_id}", middleware.AuthMiddleware(http.HandlerFunc(consentHandler.HandleDeny), jwtKey))
+	apiMux.Handle("POST /consent/revoke/{request_id}", middleware.AuthMiddleware(http.HandlerFunc(consentHandler.HandleRevoke), jwtKey))
 	// apiMux.Handle("GET /log-access", ...)
 
 	// == Doctor Routes (Authenticated + Doctor Role) ==
