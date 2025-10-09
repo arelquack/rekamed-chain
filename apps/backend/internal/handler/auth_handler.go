@@ -83,43 +83,52 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login handles the user login process.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var payload domain.LoginPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "Request body tidak valid", http.StatusBadRequest)
-		return
-	}
+    var payload domain.LoginPayload
+    if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+        http.Error(w, "Request body tidak valid", http.StatusBadRequest)
+        return
+    }
 
-	user, err := h.userRepo.GetUserByEmail(r.Context(), payload.Email)
-	if err != nil {
-		http.Error(w, "Email atau password salah", http.StatusUnauthorized)
-		return
-	}
+    user, err := h.userRepo.GetUserByEmail(r.Context(), payload.Email)
+    if err != nil {
+        http.Error(w, "Email belum terdaftar atau password salah", http.StatusUnauthorized)
+        return
+    }
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(payload.Password))
-	if err != nil {
-		http.Error(w, "Email atau password salah", http.StatusUnauthorized)
-		return
-	}
+    // --- TAMBAHKAN BLOK KODE INI ---
+    // Periksa apakah peran (role) pengguna adalah 'doctor'
+    if user.Role != "doctor" {
+        http.Error(w, "Akses ditolak. Hanya dokter yang dapat login.", http.StatusForbidden)
+        return
+    }
+    // --- AKHIR BLOK KODE ---
 
-	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &domain.Claims{
-		UserID: user.ID,
-		Role:   user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
-	}
+    err = bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(payload.Password))
+    if err != nil {
+        http.Error(w, "Email atau password salah", http.StatusUnauthorized)
+        return
+    }
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(h.jwtKey)
-	if err != nil {
-		http.Error(w, "Gagal membuat token", http.StatusInternalServerError)
-		return
-	}
+    expirationTime := time.Now().Add(24 * time.Hour)
+    claims := &domain.Claims{
+        UserID: user.ID,
+		Name:   user.Name,
+        Role:   user.Role,
+        RegisteredClaims: jwt.RegisteredClaims{
+            ExpiresAt: jwt.NewNumericDate(expirationTime),
+        },
+    }
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"token": tokenString,
-		"role":  user.Role,
-	})
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    tokenString, err := token.SignedString(h.jwtKey)
+    if err != nil {
+        http.Error(w, "Gagal membuat token", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "token": tokenString,
+        "role":  user.Role,
+    })
 }

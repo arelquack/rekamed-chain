@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // <-- 1. IMPORT useEffect
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRouter } from 'next/navigation';
 
 // --- KUMPULAN IKON ---
 
@@ -48,7 +49,16 @@ export default function LoginPage() {
 
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { login } = useAuth(); // Ambil fungsi login dari AuthContext
+    const { login } = useAuth();
+
+    const router = useRouter();
+    const auth = useAuth(); 
+
+    useEffect(() => {
+        if (!auth.isLoading && auth.token) {
+            router.push('/dashboard');
+        }
+    }, [auth.isLoading, auth.token, router]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -66,28 +76,31 @@ export default function LoginPage() {
 
 
         if (!response.ok) {
-            // 2. Jika gagal, baca respons sebagai TEKS biasa, bukan JSON
             const errorText = await response.text(); 
-            // 3. Lempar pesan error yang sebenarnya untuk ditangkap di bawah
             throw new Error(errorText || 'Terjadi kesalahan saat login.');
         }
 
         const data = await response.json();
 
-        // Jika login berhasil, panggil fungsi login dari context
-        // Fungsi ini akan otomatis menyimpan token, role, dan mengarahkan ke dashboard
-        login(data.token, data.role);
+        auth.login(data.token, data.role, data.name);
 
         } catch (err) {
-        if (err instanceof Error) {
-            setError(err.message);
-        } else {
-            setError('Terjadi kesalahan yang tidak diketahui.');
-        }
-        } finally {
-        setIsLoading(false);
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('Terjadi kesalahan yang tidak diketahui.');
+            }
+            setIsLoading(false);
         }
     };
+
+     if (auth.isLoading || auth.token) {
+        return (
+             <div className="flex h-screen items-center justify-center">
+                <p>Loading session...</p>
+            </div>
+        )
+    }
 
     return (
         <main className="flex flex-col min-h-screen items-center justify-center gap-6 p-4" style={{backgroundColor: "#F4F5FA"}}>
