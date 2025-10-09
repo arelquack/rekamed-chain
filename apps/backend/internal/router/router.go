@@ -50,7 +50,8 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, 
 		json.NewEncoder(w).Encode(map[string]string{"message": "RekamedChain API is alive!"})
 	})
 	apiMux.HandleFunc("POST /register", authHandler.Register)
-	apiMux.HandleFunc("POST /login", authHandler.Login)
+	apiMux.HandleFunc("POST /doctor/login", authHandler.DoctorLogin)
+	apiMux.HandleFunc("POST /patient/login", authHandler.PatientLogin)
 
 	// == Patient Routes (Authenticated) ==
 	apiMux.Handle("GET /records", middleware.AuthMiddleware(http.HandlerFunc(recordHandler.GetMyRecords), jwtKey))
