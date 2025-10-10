@@ -184,7 +184,7 @@ Salin URL https yang muncul, lalu masukkan ke variabel API_URL di aplikasi mobil
 |------|--------|
 | **Farrel Zandra** | Project Manager & Full Stack Developer (DevOps) |
 | **Reqi Jumantara Hapid** | UI/UX Designer & Backend Developer |
-| **Umar Faruq Robbany** | Frontend Developer & Technical Writer |
+| **Umar Faruq Robbany** | Frontend Developer & Quality Assurance |
 
 ---
 
@@ -198,6 +198,7 @@ Penggunaan untuk tujuan akademik dan penelitian diperbolehkan dengan mencantumka
 ---
 
 © **Trifur Labs 2025** — All Rights Reserved.
+
 
 
 
