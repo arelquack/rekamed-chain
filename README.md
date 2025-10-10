@@ -170,12 +170,11 @@ Salin URL https yang muncul, lalu masukkan ke variabel API_URL di aplikasi mobil
 
 | Tahapan | Fokus Pengembangan |
 |----------|--------------------|
-| 🔧 **Tahap 1** | Refactoring Backend menjadi arsitektur modular agar mudah di-maintain |
-| 🪪 **Tahap 2** | Implementasi penuh Self-Sovereign Identity (login tanpa password) |
-| 🧠 **Tahap 3** | Penelitian & penerapan CP-ABE untuk kontrol akses berbasis atribut |
-| 🔔 **Tahap 4** | Implementasi *push notification* untuk permintaan izin baru |
-| ✅ **Tahap 5** | Penambahan *unit test* dan *integration test* untuk stabilitas sistem |
-| 🌐 **Tahap 6** | Migrasi *smart contract* ke jaringan testnet publik (misal: Sepolia) |
+| 🪪 **Tahap 1** | Implementasi penuh Self-Sovereign Identity (login tanpa password) |
+| 🧠 **Tahap 2** | Penelitian & penerapan CP-ABE untuk kontrol akses berbasis atribut |
+| 🔔 **Tahap 3** | Implementasi *push notification* untuk permintaan izin baru |
+| ✅ **Tahap 4** | Penambahan *unit test* dan *integration test* untuk stabilitas sistem |
+| 🌐 **Tahap 5** | Migrasi *smart contract* ke jaringan testnet publik |
 
 ---
 
@@ -199,5 +198,6 @@ Penggunaan untuk tujuan akademik dan penelitian diperbolehkan dengan mencantumka
 ---
 
 © **Trifur Labs 2025** — All Rights Reserved.
+
 
 
