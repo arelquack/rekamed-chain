@@ -1,6 +1,6 @@
 # 🏥 RekamedChain: Sistem Rekam Medis Digital Terdesentralisasi
 
-![RekamedChain Logo](![RekamedChain Logo](apps/mobile/assets/images/icon_second.png))
+![RekamedChain Logo](apps/mobile/assets/images/icon_second.png)
 
 **RekamedChain** adalah purwarupa (*Minimum Viable Product*) sistem rekam medis digital yang menempatkan **kedaulatan data pasien sepenuhnya di tangan pasien**, dibangun di atas fondasi teknologi **Blockchain**, **Self-Sovereign Identity (SSI)**, dan **penyimpanan terdesentralisasi (IPFS)**.
 
@@ -199,4 +199,5 @@ Penggunaan untuk tujuan akademik dan penelitian diperbolehkan dengan mencantumka
 ---
 
 © **Trifur Labs 2025** — All Rights Reserved.
+
 
