@@ -46,6 +46,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
+        working-directory: ./
         run: pnpm install --frozen-lockfile
       
       - name: Lint
