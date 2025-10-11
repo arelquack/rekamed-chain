@@ -31,6 +31,7 @@ export default function IzinScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [userName, setUserName] = useState('Arel'); // Dummy name
+    const [loadingRequestId, setLoadingRequestId] = useState<string | null>(null);
     
     // State untuk mengontrol dropdown/accordion
     const [activeExpanded, setActiveExpanded] = useState(true);
@@ -56,48 +57,83 @@ export default function IzinScreen() {
 
     useFocusEffect(React.useCallback(() => { fetchRequests(); }, []));
 
-    const handleApprove = async (requestId: string) => {
+    const handleApprove = async (requestId: string, isTemporary: boolean = true) => {
+        setLoadingRequestId(requestId);
         const token = await AsyncStorage.getItem('token');
         const privateKeyHex = await AsyncStorage.getItem('private_key');
 
         if (!token || !privateKeyHex) {
-        Alert.alert('Error', 'Kunci otentikasi atau kunci privat tidak ditemukan.');
-        return;
+            Alert.alert('Error', 'Token atau private key tidak ditemukan.');
+            setLoadingRequestId(null);
+            return;
         }
-        
-        try {
-        const wallet = new ethers.Wallet(privateKeyHex);
-        const messageToSign = requestId;
-        const signature = await wallet.signMessage(messageToSign);
 
-        const response = await fetch(`${API_URL}/consent/sign/${requestId}`, {
+        try {
+            const wallet = new ethers.Wallet(privateKeyHex);
+            const messageToSign = requestId + (isTemporary ? '_temp' : '_permanent');
+            const signature = await wallet.signMessage(messageToSign);
+
+            const response = await fetch(`${API_URL}/consent/sign/${requestId}`, {
             method: 'POST',
             headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ signature: signature })
-        });
+            body: JSON.stringify({ signature }),
+            });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Server merespon dengan status ${response.status}: ${errorText}`);
-        }
-        
-        const data = await response.json();
-        Alert.alert('Sukses', data.message || 'Permintaan berhasil disetujui!');
-        fetchRequests();
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Gagal menyetujui permintaan.');
 
+            Alert.alert('Berhasil ✅', data.message || 'Permintaan berhasil disetujui.');
+            fetchRequests();
         } catch (err) {
-        if (err instanceof Error) {
-            Alert.alert('DEBUG: Terjadi Error', err.message);
-        }
+            if (err instanceof Error) Alert.alert('Gagal', err.message);
+        } finally {
+            setLoadingRequestId(null);
         }
     };
 
+    const handleDeny = async (requestId: string) => {
+        setLoadingRequestId(requestId);
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return Alert.alert('Error', 'Token tidak ditemukan.');
 
-    const handleAction = (action: 'deny' | 'revoke') => {
-        Alert.alert('Fitur Segera Hadir', `Fungsionalitas untuk '${action}' akan diimplementasikan setelah endpoint backend siap.`);
+        try {
+            const response = await fetch(`${API_URL}/consent/deny/${requestId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Gagal menolak permintaan.');
+            Alert.alert('Ditolak 🚫', data.message || 'Permintaan berhasil ditolak.');
+            fetchRequests();
+        } catch (err) {
+            if (err instanceof Error) Alert.alert('Error', err.message);
+        } finally {
+            setLoadingRequestId(null);
+        }
+    };
+
+    const handleRevoke = async (requestId: string) => {
+        setLoadingRequestId(requestId);
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return Alert.alert('Error', 'Token tidak ditemukan.');
+
+        try {
+            const response = await fetch(`${API_URL}/consent/revoke/${requestId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Gagal mencabut izin.');
+            Alert.alert('Dicabut 🔒', data.message || 'Izin berhasil dicabut.');
+            fetchRequests();
+        } catch (err) {
+            if (err instanceof Error) Alert.alert('Error', err.message);
+        } finally {
+            setLoadingRequestId(null);
+        }
     };
 
     if (isLoading) return <ActivityIndicator size="large" style={styles.centered} />;
@@ -124,19 +160,30 @@ export default function IzinScreen() {
                 <Text style={styles.pendingTime}>Diminta pada: {new Date(req.created_at).toLocaleString('id-ID')}</Text>
                 
                 <View style={styles.buttonGroup}>
-                    <TouchableOpacity style={styles.primaryButton} onPress={() => handleApprove(req.id)}>
-                    <Feather name="check-circle" size={16} color="white" />
-                    <Text style={styles.primaryButtonText}>Setujui untuk 24 Jam</Text>
+                    <TouchableOpacity 
+                        style={styles.primaryButton} 
+                        onPress={() => handleApprove(req.id, true)} // temporary
+                    >
+                        <Feather name="check-circle" size={16} color="white" />
+                        <Text style={styles.primaryButtonText}>Setujui untuk 24 Jam</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => handleApprove(req.id)}>
-                    <Feather name="check-circle" size={16} color="#007AFF" />
-                    <Text style={styles.secondaryButtonText}>Setujui Selamanya</Text>
+
+                    <TouchableOpacity 
+                        style={styles.secondaryButton} 
+                        onPress={() => handleApprove(req.id, false)} // permanent
+                    >
+                        <Feather name="check-circle" size={16} color="#007AFF" />
+                        <Text style={styles.secondaryButtonText}>Setujui Selamanya</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.tertiaryButton} onPress={() => handleAction('deny')}>
-                    <Feather name="x-circle" size={16} color="#EF4444" />
-                    <Text style={styles.tertiaryButtonText}>Tolak</Text>
+
+                    <TouchableOpacity 
+                        style={styles.tertiaryButton} 
+                        onPress={() => handleDeny(req.id)}
+                    >
+                        <Feather name="x-circle" size={16} color="#EF4444" />
+                        <Text style={styles.tertiaryButtonText}>Tolak</Text>
                     </TouchableOpacity>
-                </View>
+                    </View>
                 </View>
             </View>
             ))}
@@ -159,7 +206,7 @@ export default function IzinScreen() {
                         </View>
                         <Text style={styles.itemInfo}>Akses: Hasil Laboratorium • Berlaku hingga: Selamanya</Text>
                         <View style={styles.cardFooter}>
-                            <TouchableOpacity style={styles.revokeButton} onPress={() => handleAction('revoke')}>
+                            <TouchableOpacity style={styles.revokeButton} onPress={() => handleRevoke(req.id)} disabled={loadingRequestId === req.id}>
                                 <Text style={styles.revokeButtonText}>Cabut Izin</Text>
                             </TouchableOpacity>
                         </View>

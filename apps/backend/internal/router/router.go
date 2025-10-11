@@ -60,7 +60,7 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, 
 	apiMux.Handle("POST /consent/sign/{request_id}", middleware.AuthMiddleware(http.HandlerFunc(consentHandler.HandleGrant), jwtKey))
 	apiMux.Handle("POST /consent/deny/{request_id}", middleware.AuthMiddleware(http.HandlerFunc(consentHandler.HandleDeny), jwtKey))
 	apiMux.Handle("POST /consent/revoke/{request_id}", middleware.AuthMiddleware(http.HandlerFunc(consentHandler.HandleRevoke), jwtKey))
-	// apiMux.Handle("GET /log-access", ...)
+	// apiMux.Handle("GET /log-access", ...).
 
 	// == Doctor Routes (Authenticated + Doctor Role) ==
 	// Buat "rantai" middleware untuk dokter agar tidak diulang-ulang
