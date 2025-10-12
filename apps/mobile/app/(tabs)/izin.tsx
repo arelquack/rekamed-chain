@@ -17,12 +17,15 @@ interface ConsentRequest {
     doctor_id: string;
     patient_id: string;
     status: 'pending' | 'granted' | 'revoked' | 'denied';
+    duration: '24h' | 'permanent' | null;
+    expires_at: string | null;
     created_at: string;
 
     // tambahan dari hasil join/fetch
     doctor_name?: string;
     clinic_name?: string;
     access_scope?: string;
+    data_scope?: string;
 }
 
 interface Doctor {
@@ -42,6 +45,22 @@ export default function IzinScreen() {
     const [loadingRequestId, setLoadingRequestId] = useState<string | null>(null);
     const [activeExpanded, setActiveExpanded] = useState(true);
     const [inactiveExpanded, setInactiveExpanded] = useState(true);
+    const [countdowns, setCountdowns] = useState<Record<string, number>>({});
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCountdowns(prev => {
+                const updated: Record<string, number> = {};
+                for (const [id, timeLeft] of Object.entries(prev)) {
+                    if (timeLeft > 0) updated[id] = timeLeft - 1;
+                    else handleRevoke(id); // otomatis revoke kalau 0
+                }
+                return updated;
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     // ✅ Ambil data consent + detail dokter
     const fetchRequests = async () => {
@@ -57,29 +76,28 @@ export default function IzinScreen() {
         if (!consentRes.ok) throw new Error('Gagal mengambil data permintaan.');
         const consentData: ConsentRequest[] = await consentRes.json();
 
-        // fetch data dokter berdasarkan doctor_id unik
-        const doctorMap: Record<string, Doctor> = {};
-        for (const req of consentData) {
-            if (!doctorMap[req.doctor_id]) {
-            const docRes = await fetch(`${API_URL}/doctors/${req.doctor_id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            if (docRes.ok) {
-                doctorMap[req.doctor_id] = await docRes.json();
-            }
-            }
-        }
-
-        // gabungkan hasilnya
+        // langsung pake data dari backend
         const combined = consentData.map(req => ({
             ...req,
-            doctor_name: doctorMap[req.doctor_id]?.name || 'Tidak diketahui',
-            clinic_name: doctorMap[req.doctor_id]?.clinic_name || '—',
-            access_scope: 'Rekam Medis dan Riwayat Kunjungan',
+            clinic_name: req.clinic_name || '—',
+            access_scope: req.data_scope || 'Rekam Medis dan Riwayat Kunjungan',
         }));
 
         setPendingRequests(combined.filter(r => r.status === 'pending'));
         setActiveRequests(combined.filter(r => r.status === 'granted'));
+
+        // Inisialisasi countdown jika ada izin 24 jam
+        const countdownData: Record<string, number> = {};
+        combined.forEach(req => {
+            if (req.status === 'granted' && req.duration === '24h' && req.expires_at) {
+                const expires = new Date(req.expires_at).getTime();
+                const now = Date.now();
+                const diff = Math.max(0, Math.floor((expires - now) / 1000)); // detik
+                countdownData[req.id] = diff;
+            }
+        });
+        setCountdowns(countdownData);
+
         setInactiveRequests(combined.filter(r => r.status === 'revoked' || r.status === 'denied'));
         } catch (err) {
         if (err instanceof Error) setError(err.message);
@@ -99,35 +117,39 @@ export default function IzinScreen() {
         const privateKeyHex = await AsyncStorage.getItem('private_key');
 
         if (!token || !privateKeyHex) {
-        Alert.alert('Error', 'Token atau private key tidak ditemukan.');
-        setLoadingRequestId(null);
-        return;
+            Alert.alert('Error', 'Token atau private key tidak ditemukan.');
+            setLoadingRequestId(null);
+            return;
         }
 
         try {
-        const wallet = new ethers.Wallet(privateKeyHex);
-        const messageToSign = requestId + (isTemporary ? '_temp' : '_permanent');
-        const signature = await wallet.signMessage(messageToSign);
+            const wallet = new ethers.Wallet(privateKeyHex);
+            const duration = isTemporary ? '24h' : 'permanent';
+            const messageToSign = requestId + '_' + duration;
+            const signature = await wallet.signMessage(messageToSign);
 
-        const response = await fetch(`${API_URL}/consent/sign/${requestId}`, {
-            method: 'POST',
-            headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ signature }),
-        });
+            const response = await fetch(`${API_URL}/consent/sign/${requestId}`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ signature, duration }),
+            });
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Gagal menyetujui permintaan.');
-        Alert.alert('Berhasil ✅', data.message || 'Permintaan berhasil disetujui.');
-        fetchRequests();
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Gagal menyetujui permintaan.');
+
+            Alert.alert('Berhasil ✅', data.message || 'Permintaan berhasil disetujui.');
+
+            fetchRequests();
         } catch (err) {
-        if (err instanceof Error) Alert.alert('Gagal', err.message);
+            if (err instanceof Error) Alert.alert('Gagal', err.message);
         } finally {
-        setLoadingRequestId(null);
+            setLoadingRequestId(null);
         }
     };
+
 
     // ✅ Deny request
     const handleDeny = async (requestId: string) => {
@@ -212,7 +234,7 @@ export default function IzinScreen() {
                 </View>
 
                 <Text style={styles.cardInfo}>
-                    {req.doctor_name} • {req.clinic_name}
+                    dr. {req.doctor_name} • {req.clinic_name}
                 </Text>
                 <Text style={styles.cardDetails}>Akses ke: {req.access_scope}</Text>
                 <Text style={styles.cardDate}>
@@ -259,11 +281,19 @@ export default function IzinScreen() {
                 <View key={req.id} style={styles.card}>
                     <View style={styles.cardHeader}>
                         <Feather name="user-check" size={20} color="#007AFF" />
-                        <Text style={styles.cardTitle}>{req.doctor_name}</Text>
+                        <Text style={styles.cardTitle}> dr. {req.doctor_name}</Text>
                     </View>
                     <Text style={styles.cardSubtitle}>{req.clinic_name}</Text>
                     <View style={styles.badge}>
-                        <Text style={styles.badgeText}>Aktif</Text>
+                        {req.duration === '24h' ? (
+                            <Text style={styles.badgeText}>
+                                {countdowns[req.id] > 0
+                                    ? `Durasi: ${new Date(countdowns[req.id] * 1000).toISOString().substr(11, 8)}`
+                                    : 'Expired'}
+                            </Text>
+                        ) : (
+                            <Text style={styles.badgeText}>Selamanya</Text>
+                        )}
                     </View>
                     <TouchableOpacity 
                         style={styles.revokeButton}

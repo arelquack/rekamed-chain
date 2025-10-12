@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -45,16 +46,21 @@ func (r *postgresConsentRepository) GetRequestsByPatientID(ctx context.Context, 
 				cr.status, 
 				cr.created_at, 
 				cr.updated_at,
-				cr.duration,
-				cr.data_scope,
+				COALESCE(cr.duration, '') as duration,
+				COALESCE(cr.data_scope, '') as data_scope,
 				cr.expires_at
 			FROM consent_requests cr 
 			JOIN users d ON cr.doctor_id = d.id
 			JOIN users p ON cr.patient_id = p.id
 			WHERE cr.patient_id = $1 
 			ORDER BY cr.created_at DESC`
+
+	// 🟡 Tambahkan log debug
+	log.Printf("[DEBUG] Menjalankan GetRequestsByPatientID untuk patientID=%s", patientID)
+
 	rows, err := r.db.Query(ctx, sql, patientID)
 	if err != nil {
+		log.Printf("[ERROR] Query consent_requests gagal: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -72,10 +78,18 @@ func (r *postgresConsentRepository) GetRequestsByPatientID(ctx context.Context, 
 			&req.Duration,
 			&req.DataScope,
 			&req.ExpiresAt); err != nil {
+			log.Printf("[ERROR] rows.Scan gagal: %v", err)
 			return nil, err
 		}
 		requests = append(requests, req)
 	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[ERROR] rows iteration error: %v", err)
+		return nil, err
+	}
+
+	log.Printf("[DEBUG] GetRequestsByPatientID berhasil: total %d records", len(requests))
 	return requests, nil
 }
 
