@@ -68,6 +68,15 @@ export default function PatientsPage() {
       
       const data = await response.json();
       alert(`Sukses! Permintaan izin berhasil dikirim. ID Permintaan: ${data.request_id}`);
+
+      setResults(currentResults => 
+        currentResults.map(user => {
+          if (user.id === patientId) {
+            return { ...user, consent_status: 'pending' };
+          }
+          return user;
+        })
+      );
       
     } catch (error) {
       if(error instanceof Error) {
