@@ -12,7 +12,7 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *domain.User) (string, error)
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetUserByID(ctx context.Context, id string) (*domain.User, error)
-	SearchUsers(ctx context.Context, query string) ([]domain.PublicUser, error)
+	SearchUsers(ctx context.Context, query string, doctorID string) ([]domain.PublicUser, error)
 }
 
 // postgrestUserRepository is the PostgreSQL implementation of UserRepository.
@@ -47,14 +47,27 @@ func (r *postgresUserRepository) GetUserByEmail(ctx context.Context, email strin
 	return &user, nil
 }
 
-// SearchUsers finds users by name or email.
-func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string) ([]domain.PublicUser, error) {
+func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string, doctorID string) ([]domain.PublicUser, error) {
+	// Query ini menggunakan LEFT JOIN untuk menggabungkan status izin.
+	// COALESCE digunakan untuk memberikan nilai default 'not_requested' jika tidak ada entri izin.
 	sql := `
-		SELECT id, name, email FROM users 
-		WHERE role = 'patient' AND (name ILIKE $1 OR email ILIKE $1)
+		SELECT 
+			u.id, 
+			u.name, 
+			u.email,
+			COALESCE(
+				(SELECT cr.status 
+				 FROM consent_requests cr 
+				 WHERE cr.patient_id = u.id AND cr.doctor_id = $2 
+				 ORDER BY cr.created_at DESC 
+				 LIMIT 1),
+				'not_requested'
+			) as consent_status
+		FROM users u
+		WHERE u.role = 'patient' AND (u.name ILIKE $1 OR u.email ILIKE $1)
 		LIMIT 10;
 	`
-	rows, err := r.db.Query(ctx, sql, "%"+query+"%")
+	rows, err := r.db.Query(ctx, sql, "%"+query+"%", doctorID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +76,8 @@ func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string) 
 	users := make([]domain.PublicUser, 0)
 	for rows.Next() {
 		var user domain.PublicUser
-		if err := rows.Scan(&user.ID, &user.Name, &user.Email); err != nil {
+		// Perbarui Scan untuk membaca kolom consent_status
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.ConsentStatus); err != nil {
 			return nil, err
 		}
 		users = append(users, user)

@@ -37,7 +37,22 @@ func (r *postgresConsentRepository) CreateRequest(ctx context.Context, doctorID,
 
 // GetRequestsByPatientID retrieves all consent requests for a specific patient.
 func (r *postgresConsentRepository) GetRequestsByPatientID(ctx context.Context, patientID string) ([]domain.ConsentRequest, error) {
-	sql := `SELECT id, doctor_id, patient_id, status, created_at, updated_at FROM consent_requests WHERE patient_id = $1 ORDER BY created_at DESC`
+	sql := `SELECT 
+				cr.id, 
+				d.name as doctor_name, 
+				cr.patient_id, 
+				p.name as patient_name,
+				cr.status, 
+				cr.created_at, 
+				cr.updated_at,
+				cr.duration,
+				cr.data_scope,
+				cr.expires_at
+			FROM consent_requests cr 
+			JOIN users d ON cr.doctor_id = d.id
+			JOIN users p ON cr.patient_id = p.id
+			WHERE cr.patient_id = $1 
+			ORDER BY cr.created_at DESC`
 	rows, err := r.db.Query(ctx, sql, patientID)
 	if err != nil {
 		return nil, err
@@ -47,7 +62,16 @@ func (r *postgresConsentRepository) GetRequestsByPatientID(ctx context.Context, 
 	requests := make([]domain.ConsentRequest, 0)
 	for rows.Next() {
 		var req domain.ConsentRequest
-		if err := rows.Scan(&req.ID, &req.DoctorID, &req.PatientID, &req.Status, &req.CreatedAt, &req.UpdatedAt); err != nil {
+		if err := rows.Scan(&req.ID,
+			&req.DoctorName,
+			&req.PatientID,
+			&req.PatientName,
+			&req.Status,
+			&req.CreatedAt,
+			&req.UpdatedAt,
+			&req.Duration,
+			&req.DataScope,
+			&req.ExpiresAt); err != nil {
 			return nil, err
 		}
 		requests = append(requests, req)

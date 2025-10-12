@@ -164,5 +164,6 @@ func (h *AuthHandler) createAndSendToken(w http.ResponseWriter, user *domain.Use
 	json.NewEncoder(w).Encode(map[string]string{
 		"token": tokenString,
 		"role":  user.Role,
+		"name":  user.Name,
 	})
 }
