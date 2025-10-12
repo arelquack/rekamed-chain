@@ -12,12 +12,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 
+	"github.com/trifur/rekamedchain/backend/internal/blockchain"
 	"github.com/trifur/rekamedchain/backend/internal/handler"
 	"github.com/trifur/rekamedchain/backend/internal/middleware"
 	"github.com/trifur/rekamedchain/backend/internal/repository"
 )
 
-func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, encriptionKey []byte) http.Handler {
+func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey, encryptionKey []byte, bcClient *blockchain.BlockchainClient) http.Handler {
 	// --- Inisialisasi ---
 	httpClient := &http.Client{Timeout: 60 * time.Second}
 	ipfsClient, err := ipfshttp.NewURLApiWithClient(ipfsURL, httpClient)
@@ -29,14 +30,13 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, 
 	userRepo := repository.NewPostgresUserRepository(db)
 	recordRepo := repository.NewPostgresRecordRepository(db)
 	consentRepo := repository.NewPostgresConsentRepository(db)
-	ledgerRepo := repository.NewPostgresLedgerRepository(db)
 	logRepo := repository.NewPostgresLogRepository(db)
 
 	authHandler := handler.NewAuthHandler(userRepo, jwtKey)
-	recordHandler := handler.NewRecordHandler(recordRepo, userRepo, encriptionKey)
+	recordHandler := handler.NewRecordHandler(recordRepo, userRepo, encryptionKey, bcClient)
 	ipfsHandler := handler.NewIpfsHandler(ipfsClient)
 	consentHandler := handler.NewConsentHandler(consentRepo)
-	ledgerHandler := handler.NewLedgerHandler(ledgerRepo)
+	ledgerHandler := handler.NewLedgerHandler(bcClient)
 	userHandler := handler.NewUserHandler(userRepo)
 	logHandler := handler.NewLogHandler(logRepo)
 

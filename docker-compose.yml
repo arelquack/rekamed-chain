@@ -18,6 +18,8 @@ services:
         condition: service_healthy
       ipfs:
         condition: service_started
+      hardhat: 
+        condition: service_started
     networks:
       - rekamed_net
     command: sh -c "rm -f go.sum && go mod tidy && migrate -path ./migrations -database \"$$DB_SOURCE\" up && go run ./cmd"
@@ -72,9 +74,11 @@ services:
       dockerfile: infra/Dockerfile.hardhat
     ports:
       - "8545:8545"
+    volumes:
+    - ./blockchain:/app/blockchain
     networks:
       - rekamed_net
-
+  
 networks:
   rekamed_net:
     driver: bridge

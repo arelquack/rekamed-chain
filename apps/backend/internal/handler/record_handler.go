@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/trifur/rekamedchain/backend/internal/blockchain"
 	"github.com/trifur/rekamedchain/backend/internal/crypto"
 	"github.com/trifur/rekamedchain/backend/internal/domain"
 	"github.com/trifur/rekamedchain/backend/internal/middleware"
@@ -16,17 +17,19 @@ import (
 
 // RecordHandler handles medical record related HTTP requests.
 type RecordHandler struct {
-	recordRepo    repository.RecordRepository
-	userRepo      repository.UserRepository // Dibutuhkan untuk mengambil nama dokter
-	encryptionKey []byte
+	recordRepo       repository.RecordRepository
+	userRepo         repository.UserRepository // Dibutuhkan untuk mengambil nama dokter
+	encryptionKey    []byte
+	blockchainClient *blockchain.BlockchainClient
 }
 
 // NewRecordHandler creates a new instance of RecordHandler.
-func NewRecordHandler(recordRepo repository.RecordRepository, userRepo repository.UserRepository, encryptionKey []byte) *RecordHandler {
+func NewRecordHandler(recordRepo repository.RecordRepository, userRepo repository.UserRepository, encryptionKey []byte, bcClient *blockchain.BlockchainClient) *RecordHandler {
 	return &RecordHandler{
-		recordRepo:    recordRepo,
-		userRepo:      userRepo,
-		encryptionKey: encryptionKey,
+		recordRepo:       recordRepo,
+		userRepo:         userRepo,
+		encryptionKey:    encryptionKey,
+		blockchainClient: bcClient,
 	}
 }
 
@@ -79,35 +82,28 @@ func (h *RecordHandler) CreateRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Blockchain Ledger Logic ---
-	previousHash, err := h.recordRepo.GetLastLedgerHash(r.Context())
-	if err != nil {
-		http.Error(w, "Gagal mendapatkan blok sebelumnya", http.StatusInternalServerError)
-		return
-	}
-
+	// --- LOGIKA BLOCKCHAIN BARU ---
+	// 1. Buat hash dari data rekam medis
 	recordData := fmt.Sprintf("%s%s%s%s%s%s", recordID, newRecord.PatientID, newRecord.DoctorName, newRecord.Diagnosis, newRecord.Notes, newRecord.AttachmentCID)
 	dataHash := fmt.Sprintf("%x", sha256.Sum256([]byte(recordData)))
 
-	newBlock := &domain.LedgerBlock{
-		RecordID:     recordID,
-		DataHash:     dataHash,
-		PreviousHash: previousHash,
-	}
-
-	if err := h.recordRepo.CreateLedgerBlock(r.Context(), newBlock); err != nil {
-		log.Printf("Gagal menyimpan blok ke ledger: %v", err)
-		http.Error(w, "Gagal mencatat ke blockchain ledger", http.StatusInternalServerError)
+	// 2. Panggil fungsi di smart contract
+	tx, err := h.blockchainClient.AddRecord(dataHash)
+	if err != nil {
+		log.Printf("Gagal mencatat transaksi ke blockchain: %v", err)
+		http.Error(w, "Gagal mencatat ke blockchain", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("Blok baru ditambahkan ke ledger. Hash: %s", dataHash)
+	log.Printf("Transaksi berhasil dikirim ke blockchain! Hash Transaksi: %s", tx.Hash().Hex())
+	// --- AKHIR LOGIKA BLOCKCHAIN BARU ---
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{
-		"message":   "Rekam medis berhasil ditambahkan dan dicatat di ledger",
-		"recordID":  recordID,
-		"blockHash": dataHash,
+		"message":  "Rekam medis berhasil ditambahkan dan dicatat di blockchain",
+		"recordID": recordID,
+		"txHash":   tx.Hash().Hex(), // Kembalikan hash transaksi, bukan hash data
 	})
 }
 
