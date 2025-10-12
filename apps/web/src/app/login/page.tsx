@@ -82,7 +82,7 @@ export default function LoginPage() {
 
         const data = await response.json();
 
-        auth.login(data.token);
+        auth.login(data.token, data.role, data.name);
 
         } catch (err) {
             if (err instanceof Error) {

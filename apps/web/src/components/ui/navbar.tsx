@@ -90,7 +90,7 @@ export function Navbar({ children }: { children: React.ReactNode }) {
                 <header className="h-16 bg-white border-b flex items-center justify-end px-6">
                     <div className="flex items-center">
                         <span className="mr-4 text-sm font-medium">
-                            Dr. {user?.name || 'User'}
+                            Dr. {user || 'User'}
                         </span>
                         <button 
                             onClick={handleLogout} 
