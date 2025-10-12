@@ -43,17 +43,21 @@ export default function DashboardScreen() {
 
       try {
           // Ambil data rekam medis dan permintaan izin secara bersamaan
-          const [recordsResponse, consentsResponse] = await Promise.all([
+          const [userData, recordsResponse, consentsResponse] = await Promise.all([
+              fetch(`${API_URL}/users/me`, { headers: { 'Authorization': `Bearer ${token}` } }),
               fetch(`${API_URL}/records`, { headers: { 'Authorization': `Bearer ${token}` } }),
               fetch(`${API_URL}/consent/requests/me`, { headers: { 'Authorization': `Bearer ${token}` } })
           ]);
 
+          if (!userData.ok) throw new Error('Gagal mengambil data pengguna.');
           if (!recordsResponse.ok) throw new Error('Gagal mengambil data riwayat medis.');
           if (!consentsResponse.ok) throw new Error('Gagal mengambil data permintaan izin.');
 
+          const user = await userData.json();
           const recordsData = await recordsResponse.json();
           const consentsData = await consentsResponse.json();
 
+          setUserName(user.name || 'Pengguna');
           setRecords(recordsData || []);
           // Saring hanya permintaan yang statusnya 'pending'
           setPendingConsents((consentsData || []).filter((req: ConsentRequest) => req.status === 'pending'));
