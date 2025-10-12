@@ -11,6 +11,7 @@ import (
 type UserRepository interface {
 	CreateUser(ctx context.Context, user *domain.User) (string, error)
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
+	GetDoctorByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetUserByID(ctx context.Context, id string) (*domain.User, error)
 	SearchUsers(ctx context.Context, query string, doctorID string) ([]domain.PublicUser, error)
 }
@@ -41,6 +42,16 @@ func (r *postgresUserRepository) GetUserByEmail(ctx context.Context, email strin
 	var user domain.User
 	sql := `SELECT id, name, email, role, hashed_password FROM users WHERE email = $1`
 	err := r.db.QueryRow(ctx, sql, email).Scan(&user.ID, &user.Name, &user.Email, &user.Role, &user.HashedPassword)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *postgresUserRepository) GetDoctorByEmail(ctx context.Context, email string) (*domain.User, error) {
+	var user domain.User
+	sql := `SELECT id, name, email, role, specialization, hashed_password FROM users WHERE email = $1`
+	err := r.db.QueryRow(ctx, sql, email).Scan(&user.ID, &user.Name, &user.Email, &user.Role, &user.Specialization, &user.HashedPassword)
 	if err != nil {
 		return nil, err
 	}

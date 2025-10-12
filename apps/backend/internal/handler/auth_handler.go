@@ -90,7 +90,7 @@ func (h *AuthHandler) DoctorLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userRepo.GetUserByEmail(r.Context(), payload.Email)
+	user, err := h.userRepo.GetDoctorByEmail(r.Context(), payload.Email)
 	if err != nil {
 		http.Error(w, "Email atau password salah", http.StatusUnauthorized)
 		return
@@ -162,9 +162,9 @@ func (h *AuthHandler) createAndSendToken(w http.ResponseWriter, user *domain.Use
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"token": tokenString,
-		"role":  user.Role,
-		"name":  user.Name,
+		"token":          tokenString,
+		"role":           user.Role,
+		"name":           user.Name,
 		"specialization": user.Specialization,
 	})
 }

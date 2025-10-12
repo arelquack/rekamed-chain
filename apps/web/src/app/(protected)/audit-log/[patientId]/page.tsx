@@ -24,7 +24,7 @@ export default function AuditLogPage() {
     const token = localStorage.getItem('token');
     const fetchLogs = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/log-access/${patientId}`, {
+        const response = await fetch(`http://localhost:8080/audit-log/${patientId}`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         if (!response.ok) throw new Error('Gagal mengambil data log.');

@@ -73,6 +73,7 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, 
 	apiMux.Handle("POST /consent/request", doctorOnly(http.HandlerFunc(consentHandler.HandleRequest)))
 	apiMux.Handle("GET /ledger", doctorOnly(http.HandlerFunc(ledgerHandler.HandleGetLedger)))
 	apiMux.Handle("GET /users/search", doctorOnly(http.HandlerFunc(userHandler.HandleSearchUsers)))
+	apiMux.Handle("GET /users/detail/{patient_id}", doctorOnly(http.HandlerFunc(userHandler.HandleGetPatientProfile)))
 
 	// Rute dokter dengan middleware tambahan (consent)
 	getPatientRecordsHandler := middleware.ConsentMiddleware(db, http.HandlerFunc(recordHandler.GetPatientRecords))

@@ -98,7 +98,7 @@ export default function PatientsPage() {
             className="w-full" 
             style={{backgroundColor: "#3A81FF", color: "white", boxShadow: "none", borderRadius: "5px"}}
           >
-            Lihat Profil
+            Lihat Detail
           </Button>
         </Link>
       );
