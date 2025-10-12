@@ -22,7 +22,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import SuccessModal from '../components/SuccessModal';
 import { authStyles as styles } from './authStyles';
 
-const API_URL = 'https://fatigueless-elfrieda-scrimpier.ngrok-free.dev';
+const API_URL = 'https://5a121f6a66ba.ngrok-free.app';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');

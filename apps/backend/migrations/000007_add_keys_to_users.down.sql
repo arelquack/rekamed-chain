@@ -1,0 +1,1 @@
+ALTER TABLE users DROP COLUMN IF EXISTS public_key, DROP COLUMN IF EXISTS private_key_encrypted;

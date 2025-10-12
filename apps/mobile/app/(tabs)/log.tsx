@@ -6,7 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'react-native';
 
 // GANTI URL NGROK SESUAI TERMINAL
-const API_URL = 'https://fatigueless-elfrieda-scrimpier.ngrok-free.dev';
+const API_URL = 'https://5a121f6a66ba.ngrok-free.app';
 
 interface AccessLog {
     doctor_name: string;

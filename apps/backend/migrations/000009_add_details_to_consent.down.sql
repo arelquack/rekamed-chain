@@ -1,0 +1,1 @@
+ALTER TABLE consent_requests DROP COLUMN IF EXISTS duration, DROP COLUMN IF EXISTS data_scope, DROP COLUMN IF EXISTS expires_at;

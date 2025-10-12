@@ -165,5 +165,6 @@ func (h *AuthHandler) createAndSendToken(w http.ResponseWriter, user *domain.Use
 		"token": tokenString,
 		"role":  user.Role,
 		"name":  user.Name,
+		"specialization": user.Specialization,
 	})
 }

@@ -10,7 +10,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'react-native';
 
 // Pastikan URL sesuai backend lo
-const API_URL = 'https://fatigueless-elfrieda-scrimpier.ngrok-free.dev';
+const API_URL = 'https://5a121f6a66ba.ngrok-free.app';
 
 interface ConsentRequest {
     id: string;
