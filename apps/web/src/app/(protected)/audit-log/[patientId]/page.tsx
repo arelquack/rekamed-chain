@@ -40,7 +40,7 @@ export default function AuditLogPage() {
   }, [patientId]);
 
   return (
-    <div className="p-8 bg-gray-100 min-h-screen">
+    <div className="p-8 m-0 min-h-screen" style={{ backgroundColor: "#F4F5FA" }}>
       <div className="max-w-7xl mx-auto">
         <Card>
           <CardHeader>
