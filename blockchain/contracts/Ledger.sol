@@ -8,12 +8,19 @@ contract Ledger {
     uint256 public blockCount;
 
     // Event untuk memberi notifikasi saat ada blok baru
-    event BlockAdded(uint256 indexed blockNumber, string dataHash);
+    event BlockAdded(uint256 indexed blockNumber, string dataHash, string previousHash, uint256 timestamp);
 
-    // Fungsi untuk menambahkan catatan hash baru
+    // Fungsi ini akan dipanggil pertama kali saat deployment
+    constructor() {
+        // Inisialisasi genesis block (blok pertama)
+        lastHash = "0000000000000000000000000000000000000000000000000000000000000000";
+    }
+
+    // FUNGSI Simpan dan emit previousHash
     function addRecordHash(string memory _dataHash) public {
-        lastHash = _dataHash;
+        string memory previousHash = lastHash; // Simpan hash sebelumnya
+        lastHash = _dataHash; // Perbarui dengan hash yang baru
         blockCount++;
-        emit BlockAdded(blockCount, _dataHash);
+        emit BlockAdded(blockCount, _dataHash, previousHash, block.timestamp); // Emit semua data
     }
 }
