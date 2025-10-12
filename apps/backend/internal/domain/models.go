@@ -87,12 +87,20 @@ type CreateRecordPayload struct {
 
 // ConsentRequest represents a request for data access from a doctor to patient.
 type ConsentRequest struct {
-	ID        string    `json:"id"`
-	DoctorID  string    `json:"doctor_id"`
-	PatientID string    `json:"patient_id"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string     `json:"id"`
+	DoctorID  string     `json:"doctor_id"`
+	PatientID string     `json:"patient_id"`
+	Status    string     `json:"status"`
+	Duration  string     `json:"duration,omitempty"`
+	DataScope string     `json:"data_scope,omitempty"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+type GrantConsentPayload struct {
+	Duration  string `json:"duration"`   // e.g., "24h", "permanent"
+	DataScope string `json:"data_scope"` // e.g., "all"
 }
 
 // ConsentRequestPayload defines the structure for initiating a consent request.

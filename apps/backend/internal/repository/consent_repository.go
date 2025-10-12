@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/trifur/rekamedchain/backend/internal/domain"
@@ -11,7 +12,7 @@ import (
 type ConsentRepository interface {
 	CreateRequest(ctx context.Context, doctorID, patientID string) (string, error)
 	GetRequestsByPatientID(ctx context.Context, patientID string) ([]domain.ConsentRequest, error)
-	GrantConsent(ctx context.Context, requestID, patientID string) (int64, error)
+	GrantConsent(ctx context.Context, requestID, patientID, duration, dataScope string) (int64, error)
 	DenyConsent(ctx context.Context, requestID, patientID string) (int64, error)
 	RevokeConsent(ctx context.Context, requestID, patientID string) (int64, error)
 }
@@ -55,9 +56,24 @@ func (r *postgresConsentRepository) GetRequestsByPatientID(ctx context.Context, 
 }
 
 // GrantConsent updates the status of a consent request to 'granted'.
-func (r *postgresConsentRepository) GrantConsent(ctx context.Context, requestID, patientID string) (int64, error) {
-	sql := `UPDATE consent_requests SET status = 'granted', updated_at = NOW() WHERE id = $1 AND patient_id = $2`
-	res, err := r.db.Exec(ctx, sql, requestID, patientID)
+// GrantConsent updates the status of a consent request to 'granted'.
+func (r *postgresConsentRepository) GrantConsent(ctx context.Context, requestID, patientID, duration, dataScope string) (int64, error) {
+	var expiresAt *time.Time
+	if duration == "24h" {
+		t := time.Now().Add(24 * time.Hour)
+		expiresAt = &t
+	}
+	// Jika 'permanent', expiresAt akan tetap nil (null di DB)
+
+	sql := `UPDATE consent_requests 
+            SET status = 'granted', 
+                duration = $3,
+                data_scope = $4,
+                expires_at = $5,
+                updated_at = NOW() 
+            WHERE id = $1 AND patient_id = $2 AND status = 'pending'`
+
+	res, err := r.db.Exec(ctx, sql, requestID, patientID, duration, dataScope, expiresAt)
 	if err != nil {
 		return 0, err
 	}

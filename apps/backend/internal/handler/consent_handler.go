@@ -79,14 +79,21 @@ func (h *ConsentHandler) HandleGrant(w http.ResponseWriter, r *http.Request) {
 
 	requestID := r.PathValue("request_id")
 
+	// Decode payload dari body
+	var payload domain.GrantConsentPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Request body tidak valid (membutuhkan duration dan data_scope)", http.StatusBadRequest)
+		return
+	}
+
 	if requestID == "" {
 		http.Error(w, "Request ID dibutuhkan", http.StatusBadRequest)
 		return
 	}
 
-	rowsAffected, err := h.consentRepo.GrantConsent(r.Context(), requestID, patientID)
+	rowsAffected, err := h.consentRepo.GrantConsent(r.Context(), requestID, patientID, payload.Duration, payload.DataScope)
 	if err != nil || rowsAffected == 0 {
-		http.Error(w, "Gagal menyetujui permintaan atau permintaan tidak ditemukan", http.StatusNotFound)
+		http.Error(w, "Gagal menyetujui permintaan atau permintaan tidak ditemukan/ sudah diproses", http.StatusNotFound)
 		return
 	}
 
