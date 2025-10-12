@@ -24,7 +24,7 @@ export default function AuditLogPage() {
     const token = localStorage.getItem('token');
     const fetchLogs = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/log-access/${patientId}`, {
+        const response = await fetch(`http://localhost:8080/audit-log/${patientId}`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         if (!response.ok) throw new Error('Gagal mengambil data log.');
@@ -40,7 +40,7 @@ export default function AuditLogPage() {
   }, [patientId]);
 
   return (
-    <div className="p-8 bg-gray-100 min-h-screen">
+    <div className="p-8 m-0 min-h-screen" style={{ backgroundColor: "#F4F5FA" }}>
       <div className="max-w-7xl mx-auto">
         <Card>
           <CardHeader>

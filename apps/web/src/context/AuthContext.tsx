@@ -7,8 +7,9 @@ interface AuthContextType {
   token: string | null;
   role: string | null;
   user: string | null;
+  specialization: string | null;
   isLoading: boolean;
-  login: (token: string, role: string, name: string) => void;
+  login: (token: string, role: string, name: string, specialization: string) => void;
   logout: () => void;
 }
 
@@ -18,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [user, setUser] = useState<string | null>(null);
+  const [specialization, setSpecialization] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setToken(storedToken);
           setRole(decodedToken.role);
           setUser(decodedToken.name);
+          setSpecialization(decodedToken.specialization);
         } else {
           localStorage.removeItem('token');
         }
@@ -44,13 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (newToken: string) => {
+  const login = (token: string, role: string, name: string, specialization: string) => {
     try {
-      const decodedToken: any = jwtDecode(newToken);
-      localStorage.setItem('token', newToken);
-      setToken(newToken);
-      setRole(decodedToken.role);
-      setUser(decodedToken.name);
+      localStorage.setItem('token', token);
+      setToken(token);
+      setRole(role);
+      setUser(name);
+      setSpecialization(specialization);
     } catch (error) {
       console.error("Failed to decode token on login:", error);
     }
@@ -63,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const value = { token, role, user, isLoading, login, logout };
+  const value = { token, role, user, specialization, isLoading, login, logout };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -39,7 +39,7 @@ const LogOutIcon = (props: React.SVGProps<SVGSVGElement>) => (
 // --- KOMPONEN UTAMA ---
 
 export function Navbar({ children }: { children: React.ReactNode }) {
-    const { token, logout, user } = useAuth();
+    const { token, logout, user, specialization } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -75,7 +75,7 @@ export function Navbar({ children }: { children: React.ReactNode }) {
                                 key={link.href}
                                 href={link.href}
                                 style={isActive ? {backgroundColor: "#3A81FF", color: "#FFFFFF"} : {}}
-                                className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-200}`}
+                                className={`flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-gray-200}`}
                             >
                                 <link.icon className="h-5 w-5 mr-3" />
                                 {link.label}
@@ -90,21 +90,30 @@ export function Navbar({ children }: { children: React.ReactNode }) {
                 {/* Header / App Bar */}
                 <header className="h-16 bg-white border-b flex items-center justify-end px-6">
                     <div className="flex items-center">
-                        <span className="mr-4 text-sm font-medium">
-                            Dr. {user || 'User'}
-                        </span>
+                       <div className='flex flex-col mr-4'>
+                            <span className="mb-1 text-sm font-medium">
+                                Dr. {user || 'User'}
+                            </span>
+                            <span className="text-xs" style={{color: "#1c1c1cff"}}>
+                                {
+                                (specialization && specialization !== 'Dokter Umum')
+                                    ? `Dokter Spesialis ${specialization}`
+                                    : 'Dokter Umum'
+                                }
+                            </span>
+                        </div>
                         <button 
                             onClick={handleLogout} 
                             className="p-2 rounded-full hover:bg-gray-200"
                             aria-label="Logout"
                         >
-                            <LogOutIcon className="h-5 w-5 text-gray-600" />
+                            <LogOutIcon className="h-5 w-5 text-red-600" />
                         </button>
                     </div>
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 p-8 overflow-y-auto">
+                <main className="flex-1 overflow-y-auto">
                     {children}
                 </main>
             </div>

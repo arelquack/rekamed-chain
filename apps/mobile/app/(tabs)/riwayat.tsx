@@ -15,7 +15,7 @@ import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
 // PASTIKAN URL NGROK INI SESUAI DENGAN YANG ADA DI TERMINAL LO
-const API_URL = 'https://fatigueless-elfrieda-scrimpier.ngrok-free.dev'; // <-- GANTI DENGAN URL NGROK-MU
+const API_URL = 'https://5a121f6a66ba.ngrok-free.app'; // <-- GANTI DENGAN URL NGROK-MU
 
 interface MedicalRecord {
     id: string;

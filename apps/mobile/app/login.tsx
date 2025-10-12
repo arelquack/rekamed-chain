@@ -21,7 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { authStyles as styles } from './authStyles';
 
-const API_URL = 'https://fatigueless-elfrieda-scrimpier.ngrok-free.dev';
+const API_URL = 'https://5a121f6a66ba.ngrok-free.app';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');

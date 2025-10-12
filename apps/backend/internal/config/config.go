@@ -7,12 +7,15 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	DatabaseURL   string
-	IPFS_API      string
-	IPFS_Gateway  string
-	JWTKey        []byte
-	EncryptionKey []byte
-	ServerAddress string
+	DatabaseURL           string
+	IPFS_API              string
+	IPFS_Gateway          string
+	JWTKey                []byte
+	EncryptionKey         []byte
+	ServerAddress         string
+	HardhatURL            string
+	LedgerContractAddress string
+	SignerPrivateKey      string
 }
 
 // Load populates a Config struct from environment variables.
@@ -50,12 +53,33 @@ func Load() (*Config, error) {
 		serverAddress = ":8080"
 	}
 
+	hardhatURL := os.Getenv("HARDHAT_URL")
+	if hardhatURL == "" {
+		// Ini adalah alamat internal Docker untuk layanan hardhat
+		hardhatURL = "http://hardhat:8545"
+	}
+
+	// Ini adalah private key dari akun pertama yang disediakan oleh Hardhat
+	signerPrivateKey := os.Getenv("SIGNER_PRIVATE_KEY")
+	if signerPrivateKey == "" {
+		signerPrivateKey = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	}
+
+	ledgerContractAddress := os.Getenv("LEDGER_CONTRACT_ADDRESS")
+	if ledgerContractAddress == "" {
+		// PASTE ALAMAT KONTRAK ANDA DI SINI
+		ledgerContractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+	}
+
 	return &Config{
-		DatabaseURL:   dbURL,
-		IPFS_API:      ipfsAPI,
-		IPFS_Gateway:  ipfsGateway,
-		JWTKey:        jwtKey,
-		EncryptionKey: encryptionKey,
-		ServerAddress: serverAddress,
+		DatabaseURL:           dbURL,
+		IPFS_API:              ipfsAPI,
+		IPFS_Gateway:          ipfsGateway,
+		JWTKey:                jwtKey,
+		EncryptionKey:         encryptionKey,
+		ServerAddress:         serverAddress,
+		HardhatURL:            hardhatURL,
+		LedgerContractAddress: ledgerContractAddress,
+		SignerPrivateKey:      signerPrivateKey,
 	}, nil
 }

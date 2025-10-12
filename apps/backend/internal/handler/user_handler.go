@@ -99,3 +99,52 @@ func (h *UserHandler) HandleGetMyProfile(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(userProfile)
 }
+
+func (h *UserHandler) HandleGetPatientProfile(w http.ResponseWriter, r *http.Request) {
+	// 1. Ambil userID dari context yang sudah diisi oleh middleware
+	// userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	// if !ok {
+	// 	http.Error(w, "Gagal mendapatkan ID pengguna dari token", http.StatusInternalServerError)
+	// 	return
+	// }
+
+	patientID := r.PathValue("patient_id")
+
+	if patientID == "" {
+		http.Error(w, "Patient ID dibutuhkan", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Panggil repository untuk mendapatkan detail user
+	user, err := h.userRepo.GetUserByID(r.Context(), patientID)
+	if err != nil {
+		log.Printf("Gagal mengambil data profil untuk user %s: %v", patientID, err)
+		http.Error(w, "Gagal mengambil data profil", http.StatusNotFound)
+		return
+	}
+
+	// 3. Buat "formatted_id"
+	// Format: MED-TAHUN-4_DIGIT_TERAKHIR_UUID
+	year := time.Now().Year()
+	lastFour := "0000"
+	if len(user.ID) > 4 {
+		lastFour = user.ID[len(user.ID)-4:]
+	}
+	formattedID := fmt.Sprintf("MED-%d-%s", year, strings.ToUpper(lastFour))
+
+	// 4. Siapkan respons
+	userProfile := domain.UserProfile{
+		ID:             user.ID,
+		Name:           user.Name,
+		Email:          user.Email,
+		Role:           user.Role,
+		FormattedID:    formattedID,
+		NIP:            user.NIP,
+		Phone:          user.Phone,
+		Specialization: user.Specialization,
+	}
+
+	// 5. Kirim respons JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(userProfile)
+}

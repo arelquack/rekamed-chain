@@ -5,34 +5,25 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/trifur/rekamedchain/backend/internal/domain"
-	"github.com/trifur/rekamedchain/backend/internal/repository"
+	"github.com/trifur/rekamedchain/backend/internal/blockchain"
 )
 
-// LedgerHandler handles ledger-related HTTP requests.
 type LedgerHandler struct {
-	ledgerRepo repository.LedgerRepository
+	BlockchainClient *blockchain.BlockchainClient
 }
 
-// NewLedgerHandler creates a new instance of LedgerHandler.
-func NewLedgerHandler(ledgerRepo repository.LedgerRepository) *LedgerHandler {
-	return &LedgerHandler{ledgerRepo: ledgerRepo}
+func NewLedgerHandler(bcClient *blockchain.BlockchainClient) *LedgerHandler {
+	return &LedgerHandler{BlockchainClient: bcClient}
 }
 
-// HandleGetLedger handles the request to fetch all ledger blocks.
 func (h *LedgerHandler) HandleGetLedger(w http.ResponseWriter, r *http.Request) {
-	blocks, err := h.ledgerRepo.GetLedgerBlocks(r.Context())
+	events, err := h.BlockchainClient.GetLedgerHistory()
 	if err != nil {
-		log.Printf("Gagal mengambil data ledger: %v", err)
-		http.Error(w, "Gagal mengambil data dari server", http.StatusInternalServerError)
+		log.Printf("Gagal mengambil riwayat ledger dari blockchain: %v", err)
+		http.Error(w, "Gagal mengambil data ledger", http.StatusInternalServerError)
 		return
 	}
 
-	// Ensure we return an empty array, not null, if there are no blocks
-	if blocks == nil {
-		blocks = make([]domain.LedgerBlock, 0)
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(blocks)
+	json.NewEncoder(w).Encode(events)
 }
