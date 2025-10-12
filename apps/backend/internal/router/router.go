@@ -33,7 +33,7 @@ func NewRouter(db *pgxpool.Pool, ipfsURL, ipfsGatewayURL string, jwtKey []byte, 
 	logRepo := repository.NewPostgresLogRepository(db)
 
 	authHandler := handler.NewAuthHandler(userRepo, jwtKey)
-	recordHandler := handler.NewRecordHandler(recordRepo, userRepo, encriptionKey) // Asumsi encryption key ditangani nanti
+	recordHandler := handler.NewRecordHandler(recordRepo, userRepo, encriptionKey)
 	ipfsHandler := handler.NewIpfsHandler(ipfsClient)
 	consentHandler := handler.NewConsentHandler(consentRepo)
 	ledgerHandler := handler.NewLedgerHandler(ledgerRepo)

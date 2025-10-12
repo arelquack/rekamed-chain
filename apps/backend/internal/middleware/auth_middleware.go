@@ -72,7 +72,12 @@ func ConsentMiddleware(db *pgxpool.Pool, next http.Handler) http.Handler {
 		}
 
 		var status string
-		sql := `SELECT status FROM consent_requests WHERE doctor_id = $1 AND patient_id = $2 AND status = 'granted' LIMIT 1`
+		sql := `SELECT status FROM consent_requests 
+                WHERE doctor_id = $1 
+                  AND patient_id = $2 
+                  AND status = 'granted' 
+                  AND (expires_at IS NULL OR expires_at > NOW())
+                LIMIT 1`
 		err := db.QueryRow(r.Context(), sql, doctorID, patientID).Scan(&status)
 
 		if err != nil {

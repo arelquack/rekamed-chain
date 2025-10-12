@@ -1,0 +1,4 @@
+ALTER TABLE consent_requests
+ADD COLUMN duration VARCHAR(50),
+ADD COLUMN data_scope VARCHAR(255),
+ADD COLUMN expires_at TIMESTAMPTZ;
