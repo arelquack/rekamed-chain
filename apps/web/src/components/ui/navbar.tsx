@@ -89,7 +89,9 @@ export function Navbar({ children }: { children: React.ReactNode }) {
                 {/* Header / App Bar */}
                 <header className="h-16 bg-white border-b flex items-center justify-end px-6">
                     <div className="flex items-center">
-                        <span className="mr-4 text-sm font-medium">Dr. {user || 'User'}</span>
+                        <span className="mr-4 text-sm font-medium">
+                            Dr. {user?.name || 'User'}
+                        </span>
                         <button 
                             onClick={handleLogout} 
                             className="p-2 rounded-full hover:bg-gray-200"

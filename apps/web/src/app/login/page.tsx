@@ -66,7 +66,7 @@ export default function LoginPage() {
         setError('');
 
         try {
-        const response = await fetch('http://localhost:8080/login', {
+        const response = await fetch('http://localhost:8080/doctor/login', {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ export default function LoginPage() {
 
         const data = await response.json();
 
-        auth.login(data.token, data.role, data.name);
+        auth.login(data.token);
 
         } catch (err) {
             if (err instanceof Error) {

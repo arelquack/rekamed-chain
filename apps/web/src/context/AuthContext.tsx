@@ -1,24 +1,20 @@
-// apps/web/src/context/AuthContext.tsx
-
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { jwtDecode } from 'jwt-decode'; // <-- 1. IMPORT jwt-decode
+import { jwtDecode } from 'jwt-decode';
 
-// 2. DEFINISIKAN TIPE UNTUK DATA PENGGUNA DARI JWT
 interface User {
   id: string;
   name: string;
   role: string;
 }
 
-// 3. TAMBAHKAN 'user' KE DALAM TIPE CONTEXT
 interface AuthContextType {
   token: string | null;
   role: string | null;
-  user: string | null; // <-- TAMBAHKAN INI
+  user: User | null;
   isLoading: boolean;
-  login: (token: string, role: string, name: string) => void;
+  login: (newToken: string) => void;
   logout: () => void;
 }
 
@@ -27,47 +23,51 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [user, setUser] = useState<string | null>(null); // <-- 4. TAMBAHKAN STATE UNTUK USER
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     try {
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
-        // 5. DECODE TOKEN SAAT APLIKASI DIMUAT
-        const decodedToken: any = jwtDecode(storedToken);
-        
-        // Cek jika token masih valid (belum expired)
+        const decodedToken = jwtDecode<User & { exp: number }>(storedToken);
+
+        if (!decodedToken || !decodedToken.exp) throw new Error("Invalid token");
+
         if (decodedToken.exp * 1000 > Date.now()) {
-            setToken(storedToken);
-            setRole(decodedToken.role);
-            // Simpan data user dari token
-            setUser(decodedToken.name);
+          setToken(storedToken);
+          setRole(decodedToken.role);
+          setUser({
+            id: decodedToken.id,
+            name: decodedToken.name,
+            role: decodedToken.role,
+          });
         } else {
-            // Jika token sudah expired, hapus dari localStorage
-            localStorage.removeItem('token');
+          localStorage.removeItem('token');
         }
       }
     } catch (error) {
-        // Jika token tidak valid, hapus
-        console.error("Failed to decode token:", error);
-        localStorage.removeItem('token');
+      console.error("Failed to decode token:", error);
+      localStorage.removeItem('token');
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   }, []);
 
   const login = (newToken: string) => {
     try {
-        // 6. DECODE TOKEN SAAT LOGIN
-        const decodedToken: any = jwtDecode(newToken);
-        localStorage.setItem('token', newToken);
-        setToken(newToken);
-        setRole(decodedToken.role);
-        // Simpan data user dari token
-        setUser(decodedToken.name);
+      const decodedToken = jwtDecode<User & { exp: number }>(newToken);
+
+      localStorage.setItem('token', newToken);
+      setToken(newToken);
+      setRole(decodedToken.role);
+      setUser({
+        id: decodedToken.id,
+        name: decodedToken.name,
+        role: decodedToken.role,
+      });
     } catch (error) {
-        console.error("Failed to decode token on login:", error);
+      console.error("Failed to decode token on login:", error);
     }
   };
 
@@ -75,10 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('token');
     setToken(null);
     setRole(null);
-    setUser(null); // <-- 7. HAPUS DATA USER SAAT LOGOUT
+    setUser(null);
   };
 
-  // 8. SEDIAKAN 'user' DALAM VALUE PROVIDER
   const value = { token, role, user, isLoading, login, logout };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
