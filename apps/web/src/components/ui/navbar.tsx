@@ -74,7 +74,8 @@ export function Navbar({ children }: { children: React.ReactNode }) {
                             <Link
                                 key={link.href}
                                 href={link.href}
-                                className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-200 ${isActive ? 'bg-blue-100 text-blue-700' : ''}`}
+                                style={isActive ? {backgroundColor: "#3A81FF", color: "#FFFFFF"} : {}}
+                                className={`flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-200}`}
                             >
                                 <link.icon className="h-5 w-5 mr-3" />
                                 {link.label}
