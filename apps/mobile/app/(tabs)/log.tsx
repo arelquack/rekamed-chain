@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, SectionList, ActivityIndicator, SafeAreaView, T
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, Stack, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'react-native';
 
 // GANTI URL NGROK SESUAI TERMINAL
 const API_URL = 'https://fatigueless-elfrieda-scrimpier.ngrok-free.dev';
@@ -40,7 +41,6 @@ export default function LogAksesScreen() {
     const [logSections, setLogSections] = useState<LogSection[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [userName, setUserName] = useState('Arel'); // Dummy name
     const router = useRouter();
 
     const fetchLogs = async () => {
@@ -121,9 +121,15 @@ export default function LogAksesScreen() {
         <SafeAreaView style={styles.safeArea}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.header}>
-            <Text style={styles.headerTitle}>Log Akses</Text>
-            <Text style={styles.headerSubtitle}>{userName}</Text>
+        <View style={styles.headerLeft}>
+            <Image source={require('../../assets/images/icon.png')} style={styles.logo} />
+            <View>
+            <Text style={styles.appName}>RekamedChain</Text>
+            <Text style={styles.appSubtitle}>Catatan Akses Data Medis</Text>
+            </View>
         </View>
+        </View>
+
 
             <Text style={styles.pageDescription}>
             Semua akses ke data medis Anda tercatat dan terverifikasi blockchain.
@@ -145,64 +151,188 @@ export default function LogAksesScreen() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: 'white' },
-    container: { flex: 1, backgroundColor: '#f0f4f8' },
-    centered: { textAlign: 'center', marginTop: 50, paddingHorizontal: 20 },
-    errorText: { color: 'red' },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f0f4f8', // sama kayak Riwayat
+  },
 
-    header: {
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        paddingBottom: 14,
-        backgroundColor: 'white',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-        marginTop: (Platform.OS === 'android' ? 25 : 0),
-    },
-    headerTitle: { fontSize: 28, fontWeight: 'bold' },
-    headerSubtitle: { fontSize: 16, color: 'gray' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f4f8',
+  },
 
-    pageDescription: {
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        color: '#666',
-        fontSize: 15,
-        lineHeight: 22,
-        backgroundColor: '#f0f4f8',
-    },
-    sectionHeader: {
-        fontWeight: '600',
-        fontSize: 14,
-        color: '#666',
-        paddingVertical: 8,
-    },
+  // Loading & error di tengah
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
 
-    card: {
-        backgroundColor: 'white',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-    },
+  errorText: {
+    color: 'red',
+    fontSize: 15,
+    textAlign: 'center',
+    marginTop: 10,
+  },
 
-    itemRight: { alignItems: 'flex-end', justifyContent: 'space-between', minHeight: 60 },
-    itemTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 2 },
-    itemSubtitle: { color: 'gray', fontSize: 13, marginBottom: 8 },
-    itemDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-    itemInfo: { color: '#333', fontSize: 14, fontWeight: '500', textTransform: 'capitalize' },
-    itemAccess: { color: '#666', fontSize: 12, marginLeft: 20, fontStyle: 'italic' },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: '#6b7280',
+    marginTop: 2,
+  },
 
-    statusBadgeGreen: { backgroundColor: '#D1FAE5', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-    statusTextGreen: { color: '#065F46', fontWeight: '600', fontSize: 12 },
-    statusBadgeGray: { backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-    statusTextGray: { color: '#4B5563', fontWeight: '600', fontSize: 12 },
-    statusBadgeRed: { backgroundColor: '#FEE2E2', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-    statusTextRed: { color: '#991B1B', fontWeight: '600', fontSize: 12 },
+  pageDescription: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    color: '#4b5563',
+    fontSize: 15,
+    lineHeight: 22,
+  },
 
-    detailLink: { color: '#007AFF', marginTop: 10, fontWeight: '500' },
+  sectionHeader: {
+    fontWeight: '600',
+    fontSize: 14,
+    color: '#6b7280',
+    paddingVertical: 8,
+  },
+
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+  },
+
+  itemRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    minHeight: 60,
+  },
+  itemTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 2,
+    color: '#111827',
+  },
+  itemSubtitle: {
+    color: '#6b7280',
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  itemDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  itemInfo: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
+  itemAccess: {
+    color: '#6b7280',
+    fontSize: 12,
+    marginLeft: 20,
+    fontStyle: 'italic',
+  },
+
+  statusBadgeGreen: {
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  statusTextGreen: {
+    color: '#065F46',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  statusBadgeGray: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  statusTextGray: {
+    color: '#4B5563',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  statusBadgeRed: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  statusTextRed: {
+    color: '#991B1B',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+
+  detailLink: {
+    color: '#007AFF',
+    marginTop: 10,
+    fontWeight: '500',
+  },
+  header: {
+  backgroundColor: 'white',
+  paddingHorizontal: 20,
+  paddingTop: Platform.OS === 'android' ? 40 : 20,
+  paddingBottom: 14,
+  borderBottomWidth: 1,
+  borderBottomColor: '#e5e7eb',
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  shadowColor: '#000',
+  shadowOpacity: 0.05,
+  shadowRadius: 3,
+  elevation: 2,
+},
+
+headerLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
+
+logo: {
+  width: 36,
+  height: 36,
+  resizeMode: 'contain',
+},
+
+appName: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#111827',
+},
+
+appSubtitle: {
+  fontSize: 12,
+  color: '#6b7280',
+  marginTop: 1,
+},
+
+userName: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#007AFF',
+},
 });

@@ -147,11 +147,13 @@ export default function RiwayatScreen() {
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.header}>
-                <Image
-                    source={require('../../assets/images/icon.png')} 
-                    style={styles.logo}
-                />
-                <Text style={styles.headerTitle}>Riwayat Medis</Text>
+                <View style={styles.headerLeft}>
+                    <Image source={require('../../assets/images/icon.png')} style={styles.logo} />
+                    <View>
+                        <Text style={styles.appName}>RekamedChain</Text>
+                        <Text style={styles.appSubtitle}>Riwayat Rekam Medis</Text>
+                    </View>
+                </View>
             </View>
             
             <FlatList
@@ -182,6 +184,21 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    appName: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#111827',
+    },
+    appSubtitle: {
+        fontSize: 12,
+        color: '#6b7280',
+        marginTop: 1,
     },
     logo: {
         width: 36,
