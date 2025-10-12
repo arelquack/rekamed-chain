@@ -25,20 +25,30 @@ func NewUserHandler(userRepo repository.UserRepository) *UserHandler {
 
 // HandleSearchUsers handles searching for patients by name or email.
 func (h *UserHandler) HandleSearchUsers(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	if len(query) < 1 {
-		http.Error(w, "Query pencarian minimal 1 karakter", http.StatusBadRequest)
+	// Ambil ID dokter yang sedang login dari token
+	doctorID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "Gagal mendapatkan ID dokter dari token", http.StatusInternalServerError)
 		return
 	}
 
-	users, err := h.userRepo.SearchUsers(r.Context(), query)
+	query := r.URL.Query().Get("q")
+	if len(query) < 1 {
+		// Jika Anda ingin tetap mengizinkan query < 3, hapus blok ini.
+		// Namun, ini adalah praktik yang baik untuk performa.
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(make([]domain.PublicUser, 0))
+		return
+	}
+
+	// Panggil repository dengan doctorID
+	users, err := h.userRepo.SearchUsers(r.Context(), query, doctorID)
 	if err != nil {
 		log.Printf("Gagal mencari user: %v", err)
 		http.Error(w, "Gagal mencari user", http.StatusInternalServerError)
 		return
 	}
 
-	// Ensure we return an empty array, not null
 	if users == nil {
 		users = make([]domain.PublicUser, 0)
 	}
