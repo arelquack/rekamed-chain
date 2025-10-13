@@ -157,7 +157,7 @@ Akses di http://localhost:3000
 
 ```bash
 cd apps/mobile
-pnpm --filter web dev
+pnpm exec expo start --tunnel
 ```
 
 Scan QR Code menggunakan aplikasi Expo Go di perangkat ponselmu.
@@ -202,6 +202,7 @@ Penggunaan untuk tujuan akademik dan penelitian diperbolehkan dengan mencantumka
 ---
 
 © **Trifur Labs 2025** — All Rights Reserved.
+
 
 
 
